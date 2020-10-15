@@ -2,6 +2,7 @@
 import enum
 
 import gym
+import numpy as np
 
 import robot_interfaces
 import robot_fingers
@@ -65,7 +66,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
         self._compute_reward = reward_fn
         self._termination_fn = termination_fn if sim else None
         self.initializer = initializer if sim else None
-        self.goal = cube_goal_pose
+        self.goal = {k: np.array(v) for k, v in cube_goal_pose.items()}
         self.info = {"difficulty": goal_difficulty}
 
         self.action_type = action_type
@@ -150,6 +151,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
                 "achieved_goal": object_state_space,
             }
         )
+        self.prev_observation = None
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         """Compute the reward for the given achieved and desired goal.
@@ -223,6 +225,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
             observation = self._create_observation(t, action)
 
+            if self.prev_observation is None:
+                self.prev_observation = observation
             reward += self._compute_reward(
                 self.prev_observation,
                 observation,
@@ -277,14 +281,6 @@ class RealRobotCubeEnv(gym.GoalEnv):
         # reset simulation
         del self.platform
 
-        # visualize the goal
-        if self.visualization:
-            self.goal_marker = trifinger_simulation.visual_objects.CubeMarker(
-                width=0.065,
-                position=self.goal["position"],
-                orientation=self.goal["orientation"],
-                physicsClientId=self.platform.simfinger._pybullet_client_id,
-            )
         # initialize simulation
         if self.initializer is None:
             initial_object_pose = move_cube.sample_goal(difficulty=-1)
@@ -299,6 +295,14 @@ class RealRobotCubeEnv(gym.GoalEnv):
             self.platform.simfinger.finger_urdf_path,
             self.platform.simfinger.tip_link_names
         )
+        # visualize the goal
+        if self.visualization:
+            self.goal_marker = trifinger_simulation.visual_objects.CubeMarker(
+                width=0.065,
+                position=self.goal["position"],
+                orientation=self.goal["orientation"],
+                physicsClientId=self.platform.simfinger._pybullet_client_id,
+            )
 
     def seed(self, seed=None):
         """Sets the seed for this env’s random number generator.

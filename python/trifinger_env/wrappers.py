@@ -1,48 +1,35 @@
 """Gym environment for the Real Robot Challenge Phase 1 (Simulation)."""
-import time
 import pybullet as p
 import numpy as np
 import gym
-import itertools
-from scipy.spatial.transform import Rotation as R
-from rrc_simulation import TriFingerPlatform
-from rrc_simulation import camera
-from rrc_simulation.code.utils import sample_cube_surface_points, apply_transform, VisualMarkers, is_valid_action, action_type_to
-from pybullet_planning import plan_joint_motion
-from pybullet_planning.interfaces.robots.collision import get_collision_fn
+from trifinger_simulation import TriFingerPlatform
+from trifinger_simulation import camera
 from rrc_simulation.gym_wrapper.envs import cube_env
-from rrc_simulation.gym_wrapper.envs.cube_env import ActionType
-from rrc_simulation import collision_objects
 import cv2
-import copy
-import functools
+from dl import nest
 
-from rrc_simulation.code.align_rotation import align_rotation
-from rrc_simulation.code.const import EXCEP_MSSG
+EXCEP_MSSG = "================= captured exception =================\n" + \
+    "{message}\n" + "{error}\n" + '=================================='
 
 
 class FlatObservationWrapper(gym.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
-        low = [
-            self.observation_space[name].low.flatten()
-            for name in self.observation_names
-        ]
-
-        high = [
-            self.observation_space[name].high.flatten()
-            for name in self.observation_names
-        ]
+        spaces = {}
+        for k, v in self.observation_space.spaces.items():
+            if hasattr(v, 'spaces'):
+                spaces[k] = v.spaces
+            else:
+                spaces[k] = v
+        low = [x.low.flatten() for x in nest.flatten(spaces)]
+        high = [x.high.flatten() for x in nest.flatten(spaces)]
 
         self.observation_space = gym.spaces.Box(
             low=np.concatenate(low), high=np.concatenate(high)
         )
 
     def observation(self, obs):
-        observation = [obs[name].flatten() for name in self.observation_names]
-
-        observation = np.concatenate(observation)
-        return observation
+        return np.concatenate([x.flatten() for x in nest.flatten(obs)])
 
 
 class ResidualLearningFCWrapper(gym.Wrapper):

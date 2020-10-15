@@ -12,6 +12,7 @@ import socket
 import logging
 import pathlib
 import sys
+import shutil
 
 
 episode_length = 2 * 60 * 1000
@@ -112,6 +113,14 @@ class SubmissionRunner:
 
     def clone_user_repository(self):
         """Clone the user repository."""
+        if os.path.exists(self.config.git_repo):
+            logging.info(
+                "Getting user code from local repository %s",
+                self.config.git_repo,
+            )
+            shutil.copytree(self.config.git_repo, "usercode")
+            self.git_revision = None
+            return
         logging.info(
             "Clone user git repository %s (%s)",
             self.config.git_repo,

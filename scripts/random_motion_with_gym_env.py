@@ -8,7 +8,6 @@ import json
 import sys
 
 from trifinger_env import make_training_env
-from trifinger_env.cube_env import ActionType
 
 
 class RandomPolicy:
@@ -27,9 +26,12 @@ def main():
     difficulty = int(sys.argv[1])
     goal_pose_json = sys.argv[2]
     goal = json.loads(goal_pose_json)
+    import torch
+    print(torch.cuda.is_available())
 
+    print(goal, difficulty, goal_pose_json)
     env = make_training_env(
-        goal, difficulty, ActionType.POSITION, frameskip=200
+        goal, difficulty, 'position', frameskip=200,
     )
     policy = RandomPolicy(env.action_space)
 

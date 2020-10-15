@@ -6,12 +6,30 @@ easily try out different cube initializations (i.e. for cirriculum learning).
 
 import os
 from collections import namedtuple
-from trifinger_simulation.gym_wrapper.envs import cube_env
 from trifinger_simulation.tasks import move_cube
 from trifinger_simulation.tasks.move_cube import Pose
 from scipy.spatial.transform import Rotation
 from trifinger_simulation.tasks.move_cube import _ARENA_RADIUS, _max_height
 import numpy as np
+
+
+class RandomInitializer:
+    """Initializer that samples random initial states and goals."""
+
+    def __init__(self, difficulty):
+        """Initialize.
+        Args:
+            difficulty (int):  Difficulty level for sampling goals.
+        """
+        self.difficulty = difficulty
+
+    def get_initial_state(self):
+        """Get a random initial object pose (always on the ground)."""
+        return move_cube.sample_goal(difficulty=-1)
+
+    def get_goal(self):
+        """Get a random goal depending on the difficulty."""
+        return move_cube.sample_goal(difficulty=self.difficulty)
 
 
 class EvalEpisodesInitializer:
@@ -99,10 +117,10 @@ class Task4SmallRotation:
         # weight xy- and z-parts by their expected range
         return (xy_dist / range_xy_dist + z_dist / range_z_dist) / 2
 
-task1_init = cube_env.RandomInitializer(difficulty=1)
-task2_init = cube_env.RandomInitializer(difficulty=2)
-task3_init = cube_env.RandomInitializer(difficulty=3)
-task4_init = cube_env.RandomInitializer(difficulty=4)
+task1_init = RandomInitializer(difficulty=1)
+task2_init = RandomInitializer(difficulty=2)
+task3_init = RandomInitializer(difficulty=3)
+task4_init = RandomInitializer(difficulty=4)
 
 # Each line internally loads large number of json files, but it runs pretty fast (<0.2s in total) on a laptop. So it'd be all right.
 task1_eval_init = EvalEpisodesInitializer(difficulty=1)

@@ -4,6 +4,8 @@ from trifinger_env.wrappers import *
 
 def get_initializer(name):
     from trifinger_env import initializers
+    if name is None:
+        return None
     if hasattr(initializers, name):
         return getattr(initializers, name)
     else:
@@ -12,6 +14,8 @@ def get_initializer(name):
 
 def get_reward_fn(name):
     from trifinger_env import reward_fns
+    if name is None:
+        return reward_fns.competition_reward
     if hasattr(reward_fns, name):
         return getattr(reward_fns, name)
     else:
@@ -20,6 +24,8 @@ def get_reward_fn(name):
 
 def get_termination_fn(name):
     from trifinger_env import termination_fns
+    if name is None:
+        return None
     if hasattr(termination_fns, name):
         return getattr(termination_fns, name)
     elif hasattr(termination_fns, "generate_" + name):
@@ -32,7 +38,7 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
                       sim=False, visualization=False, reward_fn=None,
                       termination_fn=None, initializer=None,
                       residual=False, rank=0, monitor=False):
-    is_level_4 = 'task4' in reward_fn
+    is_level_4 = goal_difficulty == 4
     reward_fn = get_reward_fn(reward_fn)
     initializer = get_initializer(initializer)
     termination_fn = get_termination_fn(termination_fn)
