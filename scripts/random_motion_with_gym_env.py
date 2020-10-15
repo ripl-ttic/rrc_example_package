@@ -7,7 +7,8 @@ dummy policy which uses random actions.
 import json
 import sys
 
-from rrc_example_package import cube_env
+from trifinger_env import make_training_env
+from trifinger_env.cube_env import ActionType
 
 
 class RandomPolicy:
@@ -27,8 +28,8 @@ def main():
     goal_pose_json = sys.argv[2]
     goal = json.loads(goal_pose_json)
 
-    env = cube_env.RealRobotCubeEnv(
-        goal, difficulty, cube_env.ActionType.POSITION, frameskip=200
+    env = make_training_env(
+        goal, difficulty, ActionType.POSITION, frameskip=200
     )
     policy = RandomPolicy(env.action_space)
 

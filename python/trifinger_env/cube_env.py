@@ -9,6 +9,8 @@ import trifinger_simulation
 import trifinger_simulation.visual_objects
 from trifinger_simulation import trifingerpro_limits
 from trifinger_simulation.tasks import move_cube
+from trifinger_env.reward_fns import competition_reward
+from trifinger_env.pinocchio_utils import PinocchioUtils
 
 
 class ActionType(enum.Enum):
@@ -39,6 +41,11 @@ class RealRobotCubeEnv(gym.GoalEnv):
         goal_difficulty: int,
         action_type: ActionType = ActionType.POSITION,
         frameskip: int = 1,
+        sim: bool = False,
+        visualization: bool = False,
+        reward_fn: callable = competition_reward,
+        termination_fn: callable = None,
+        initializer: callable = None,
     ):
         """Initialize.
 
@@ -55,6 +62,9 @@ class RealRobotCubeEnv(gym.GoalEnv):
         # Basic initialization
         # ====================
 
+        self._compute_reward = reward_fn
+        self._termination_fn = termination_fn if sim else None
+        self.initializer = initializer if sim else None
         self.goal = cube_goal_pose
         self.info = {"difficulty": goal_difficulty}
 
@@ -70,6 +80,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         # will be initialized in reset()
         self.platform = None
+        self.simulation = sim
+        self.visualization = visualization
 
         # Create the action and observation spaces
         # ========================================
@@ -211,11 +223,12 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
             observation = self._create_observation(t, action)
 
-            reward += self.compute_reward(
-                observation["achieved_goal"],
-                observation["desired_goal"],
-                self.info,
+            reward += self._compute_reward(
+                self.prev_observation,
+                observation,
+                self.info
             )
+            self.prev_observation = observation
 
             self.step_count = t
             # make sure to not exceed the episode length
@@ -223,6 +236,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
                 break
 
         is_done = self.step_count == move_cube.episode_length
+        if self._termination_fn is not None:
+            is_done = is_done or self._termination_fn(observation)
 
         return observation, reward, is_done, self.info
 
@@ -231,16 +246,17 @@ class RealRobotCubeEnv(gym.GoalEnv):
         # the platform frontend, which is needed for the submission system, and
         # the direct simulation, which may be more convenient if you want to
         # pre-train locally in simulation.
-        self._reset_platform_frontend()
-        # self._reset_direct_simulation()
+        if self.simulation:
+            self._reset_direct_simulation()
+        else:
+            self._reset_platform_frontend()
 
         self.step_count = 0
 
         # need to already do one step to get initial observation
         # TODO disable frameskip here?
-        observation, _, _, _ = self.step(self._initial_action)
-
-        return observation
+        self.prev_observation, _, _, _ = self.step(self._initial_action)
+        return self.prev_observation
 
     def _reset_platform_frontend(self):
         """Reset the platform frontend."""
@@ -257,27 +273,32 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         With this the env can be used without backend.
         """
-        # set this to false to disable pyBullet's simulation
-        visualization = True
 
         # reset simulation
         del self.platform
 
-        # initialize simulation
-        initial_object_pose = move_cube.sample_goal(difficulty=-1)
-        self.platform = trifinger_simulation.TriFingerPlatform(
-            visualization=visualization,
-            initial_object_pose=initial_object_pose,
-        )
-
         # visualize the goal
-        if visualization:
+        if self.visualization:
             self.goal_marker = trifinger_simulation.visual_objects.CubeMarker(
                 width=0.065,
                 position=self.goal["position"],
                 orientation=self.goal["orientation"],
                 physicsClientId=self.platform.simfinger._pybullet_client_id,
             )
+        # initialize simulation
+        if self.initializer is None:
+            initial_object_pose = move_cube.sample_goal(difficulty=-1)
+        else:
+            initial_object_pose = self.initializer.get_initial_state()
+            self.goal = self.initializer.get_goal()
+        self.platform = trifinger_simulation.TriFingerPlatform(
+            visualization=self.visualization,
+            initial_object_pose=initial_object_pose,
+        )
+        self.pinocchio_utils = PinocchioUtils(
+            self.platform.simfinger.finger_urdf_path,
+            self.platform.simfinger.tip_link_names
+        )
 
     def seed(self, seed=None):
         """Sets the seed for this env’s random number generator.
