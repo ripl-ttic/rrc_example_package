@@ -47,6 +47,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
         reward_fn: callable = competition_reward,
         termination_fn: callable = None,
         initializer: callable = None,
+        episode_length: int = move_cube.episode_length,
     ):
         """Initialize.
 
@@ -83,6 +84,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
         self.platform = None
         self.simulation = sim
         self.visualization = visualization
+        self.episode_length = episode_length if sim else move_cube.episode_length
 
         # Create the action and observation spaces
         # ========================================
@@ -139,11 +141,17 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         self.observation_space = gym.spaces.Dict(
             {
-                "observation": gym.spaces.Dict(
+                "robot": gym.spaces.Dict(
                     {
                         "position": robot_position_space,
                         "velocity": robot_velocity_space,
                         "torque": robot_torque_space,
+                        "tip_positions": gym.spaces.Box(
+                            low=np.array([trifingerpro_limits.object_position.low] * 3),
+                            high=np.array([trifingerpro_limits.object_position.high] * 3),
+                        ),
+                        "tip_force": gym.spaces.Box(low=np.zeros(3),
+                                                    high=np.ones(3))
                     }
                 ),
                 "action": self.action_space,
@@ -151,6 +159,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
                 "achieved_goal": object_state_space,
             }
         )
+        self.pinocchio_utils = PinocchioUtils()
         self.prev_observation = None
 
     def compute_reward(self, achieved_goal, desired_goal, info):
@@ -213,8 +222,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         # ensure episode length is not exceeded due to frameskip
         step_count_after = self.step_count + num_steps
-        if step_count_after > move_cube.episode_length:
-            excess = step_count_after - move_cube.episode_length
+        if step_count_after > self.episode_length:
+            excess = step_count_after - self.episode_length
             num_steps = max(1, num_steps - excess)
 
         reward = 0.0
@@ -236,10 +245,10 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
             self.step_count = t
             # make sure to not exceed the episode length
-            if self.step_count >= move_cube.episode_length - 1:
+            if self.step_count >= self.episode_length - 1:
                 break
 
-        is_done = self.step_count == move_cube.episode_length
+        is_done = self.step_count == self.episode_length
         if self._termination_fn is not None:
             is_done = is_done or self._termination_fn(observation)
 
@@ -291,10 +300,6 @@ class RealRobotCubeEnv(gym.GoalEnv):
             visualization=self.visualization,
             initial_object_pose=initial_object_pose,
         )
-        self.pinocchio_utils = PinocchioUtils(
-            self.platform.simfinger.finger_urdf_path,
-            self.platform.simfinger.tip_link_names
-        )
         # visualize the goal
         if self.visualization:
             self.goal_marker = trifinger_simulation.visual_objects.CubeMarker(
@@ -327,10 +332,12 @@ class RealRobotCubeEnv(gym.GoalEnv):
         camera_observation = self.platform.get_camera_observation(t)
 
         observation = {
-            "observation": {
+            "robot": {
                 "position": robot_observation.position,
                 "velocity": robot_observation.velocity,
                 "torque": robot_observation.torque,
+                "tip_positions": np.array(self.pinocchio_utils.forward_kinematics(robot_observation.position)),
+                "tip_force": robot_observation.tip_force,
             },
             "action": action,
             "desired_goal": self.goal,

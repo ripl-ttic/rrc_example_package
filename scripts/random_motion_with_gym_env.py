@@ -29,9 +29,8 @@ def main():
     import torch
     print(torch.cuda.is_available())
 
-    print(goal, difficulty, goal_pose_json)
     env = make_training_env(
-        goal, difficulty, 'position', frameskip=200,
+        goal, difficulty, 'position', frameskip=200, reward_fn='training_reward',
     )
     policy = RandomPolicy(env.action_space)
 

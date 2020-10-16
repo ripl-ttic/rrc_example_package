@@ -8,24 +8,21 @@ class PinocchioUtils:
     Consists of kinematic methods for the finger platform.
     """
 
-    def __init__(self, finger_urdf_path, tip_link_names):
+    def __init__(self):
         """
         Initializes the finger model on which control's to be performed.
-
-        Args:
-            finger (SimFinger): An instance of the SimFinger class
         """
+        self.urdf_path = '/opt/blmc_ei/src/robot_properties_fingers/urdf/pro/trifingerpro.urdf'
         self.tip_link_names = [
             "finger_tip_link_0",
             "finger_tip_link_120",
             "finger_tip_link_240",
         ]
-        print(finger_urdf_path, tip_link_names)
-        self.robot_model = pinocchio.buildModelFromUrdf(finger_urdf_path)
+        self.robot_model = pinocchio.buildModelFromUrdf(self.urdf_path)
         self.data = self.robot_model.createData()
         self.tip_link_ids = [
             self.robot_model.getFrameId(link_name)
-            for link_name in tip_link_names
+            for link_name in self.tip_link_names
         ]
 
     def forward_kinematics(self, joint_positions):
