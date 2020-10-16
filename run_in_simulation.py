@@ -401,6 +401,7 @@ class SubmissionRunner:
             "exec",
             "--cleanenv",
             "--contain",
+            "--nv",
             "-B",
             "{}:/ws,/dev,/run,{}:/output".format(workspace_path, user_output_dir),
             self.config.singularity_user_image,
