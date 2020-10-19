@@ -10,7 +10,9 @@ import trifinger_simulation
 import trifinger_simulation.visual_objects
 from trifinger_simulation import trifingerpro_limits
 # from trifinger_simulation.tasks import move_cube
+from trifinger_env.simulation import TriFingerPlatform
 from trifinger_env.simulation.tasks import move_cube
+from trifinger_env.simulation import visual_objects
 from trifinger_env.reward_fns import competition_reward
 from trifinger_env.pinocchio_utils import PinocchioUtils
 from trifinger_env.simulation.gym_wrapper.envs.cube_env import ActionType
@@ -83,6 +85,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
         self.frameskip = frameskip
 
         # will be initialized in reset()
+        self.real_platform = None
         self.platform = None
         self.simulation = sim
         self.visualization = visualization
@@ -243,8 +246,11 @@ class RealRobotCubeEnv(gym.GoalEnv):
             - info (dict): info dictionary containing the difficulty level of
               the goal.
         """
-        if self.platform is None:
+        if self.real_platform is None:
             raise RuntimeError("Call `reset()` before starting to step.")
+
+        if self.platform is None:
+            raise RuntimeError("platform is not instantiated.")
 
         if not self.action_space.contains(action):
             raise ValueError(
@@ -263,9 +269,13 @@ class RealRobotCubeEnv(gym.GoalEnv):
         for _ in range(num_steps):
             # send action to robot
             robot_action = self._gym_action_to_robot_action(action)
-            t = self.platform.append_desired_action(robot_action)
+            t = self.real_platform.append_desired_action(robot_action)
+            # print("real t", t)
+            # t_ = self.platform.append_desired_action(robot_action)
+            # print("sim t", t)
 
             observation = self._create_observation(t, action)
+            self._set_sim_state(observation)
 
             if self.prev_observation is None:
                 self.prev_observation = observation
@@ -296,6 +306,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
             self._reset_direct_simulation()
         else:
             self._reset_platform_frontend()
+            self._reset_simulation()
 
         self.step_count = 0
 
@@ -307,12 +318,80 @@ class RealRobotCubeEnv(gym.GoalEnv):
     def _reset_platform_frontend(self):
         """Reset the platform frontend."""
         # reset is not really possible
-        if self.platform is not None:
+        if self.real_platform is not None:
             raise RuntimeError(
                 "Once started, this environment cannot be reset."
             )
 
-        self.platform = robot_fingers.TriFingerPlatformFrontend()
+        self.real_platform = robot_fingers.TriFingerPlatformFrontend()
+
+    def _reset_simulation(self):
+        del self.platform
+        if hasattr(self, 'goal_marker'):
+            del self.goal_marker
+
+        # initialize simulation
+        if self.initializer is None:
+            # if no initializer is given (which will be the case during training),
+            # we can initialize in any way desired. here, we initialize the cube always
+            # in the center of the arena, instead of randomly, as this appears to help
+            # training
+            initial_robot_position = TriFingerPlatform.spaces.robot_position.default
+            default_object_position = (
+                TriFingerPlatform.spaces.object_position.default
+            )
+            default_object_orientation = (
+                TriFingerPlatform.spaces.object_orientation.default
+            )
+            # initial_object_pose = move_cube.Pose(
+            #     position=default_object_position,
+            #     orientation=default_object_orientation,
+            # )
+            goal_object_pose = move_cube.sample_goal(difficulty=1)
+        else:
+            # if an initializer is given, i.e. during evaluation, we need to initialize
+            # according to it, to make sure we remain coherent with the standard CubeEnv.
+            # otherwise the trajectories produced during evaluation will be invalid.
+            initial_robot_position = TriFingerPlatform.spaces.robot_position.default
+            # initial_object_pose=self.initializer.get_initial_state()
+            goal_object_pose = self.initializer.get_goal()
+
+        dummy_initial_object_pose = move_cube.Pose(
+            position=default_object_position,
+            orientation=default_object_orientation,
+        )
+        self.platform = TriFingerPlatform(
+            visualization=self.visualization,
+            initial_robot_position=initial_robot_position,
+            initial_object_pose=dummy_initial_object_pose,
+        )
+
+        self.goal = {
+            "position": goal_object_pose.position,
+            "orientation": goal_object_pose.orientation,
+        }
+        # visualize the goal
+        is_level_4 = False
+        if self.visualization:
+            if is_level_4:  # TEMP
+                self.goal_marker = visual_objects.CubeMarker(
+                    width=0.065,
+                    position=goal_object_pose.position,
+                    orientation=goal_object_pose.orientation,
+                )
+                self.ori_goal_marker = VisualCubeOrientation(
+                    goal_object_pose.position,
+                    goal_object_pose.orientation
+                )
+
+            else:
+                self.goal_marker = visual_objects.SphereMaker(
+                    radius=0.065 / 2,
+                    position=goal_object_pose.position,
+                )
+
+        self.step_count = 0
+        # init_obs = self._create_observation(0)
 
     def _reset_direct_simulation(self):
         """Reset direct simulation.
@@ -361,8 +440,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
         return [seed]
 
     def _create_observation(self, t, action):
-        robot_observation = self.platform.get_robot_observation(t)
-        camera_observation = self.platform.get_camera_observation(t)
+        robot_observation = self.real_platform.get_robot_observation(t)
+        camera_observation = self.real_platform.get_camera_observation(t)
 
         observation = {
             "robot": {
@@ -379,7 +458,34 @@ class RealRobotCubeEnv(gym.GoalEnv):
                 "orientation": camera_observation.object_pose.orientation,
             },
         }
-        return observation
+        return self._newobs_to_oldobs(observation)
+
+    def _newobs_to_oldobs(self, obs):
+        old_obs = {
+            "robot_position": obs['robot']['position'],
+            "robot_velocity": obs['robot']['velocity'],
+            "robot_tip_positions": obs['robot']['tip_positions'],
+            "tip_force": obs['robot']['tip_force'],
+            "object_position": obs['achieved_goal']['position'],
+            "object_orientation": obs['achieved_goal']['orientation'],
+            "goal_object_position": obs['desired_goal']['position'],
+            "goal_object_orientation": obs['desired_goal']['orientation'],
+            "desired_goal": obs['desired_goal'],
+            'achieved_goal': obs['achieved_goal']
+        }
+        return old_obs
+
+    def _set_sim_state(self, obs):
+        # set cube position & orientation
+        self.platform.cube.set_state(
+            obs['object_position'],
+            obs['object_orientation']
+        )
+        # set robot position & velocity
+        self.platform.simfinger.reset_finger_positions_and_velocities(
+            obs['robot_position'],
+            obs['robot_velocity']
+        )
 
     def _gym_action_to_robot_action(self, gym_action):
         # construct robot action depending on action type

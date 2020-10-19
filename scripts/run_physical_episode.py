@@ -74,7 +74,7 @@ def make_physical_env(goal_dict, reward_fn, termination_fn, initializer, action_
     #                   is_level_4=is_level_4)
     goal_difficulty = 3
     env = RealRobotCubeEnv(goal_dict, goal_difficulty, action_type,
-                           frameskip=1, sim=False, visualization=True,
+                           frameskip=1, sim=False, visualization=visualization,
                            reward_fn=reward_fn, termination_fn=termination_fn,
                            initializer=initializer)
     env.seed(seed=rank)
@@ -136,7 +136,7 @@ def main():
             'rank': 0
     }
     # env = make_training_env(visualization=True, **eval_config)
-    env = make_physical_env(goal_dict, visualization=True, **eval_config)
+    env = make_physical_env(goal_dict, visualization=False, **eval_config)
 
     obs = env.reset()
     done = False

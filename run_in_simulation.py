@@ -392,7 +392,7 @@ class SubmissionRunner:
 
         # binding full /dev as only binding /dev/shm does not work with --contain
         exec_cmd = (
-            "python3 -m pip install -e /ws;"
+            "python3 -m pip install -e /ws/src/usercode;"
             ". /setup.bash;"
             ". /ws/devel/setup.bash;"
             "/ws/src/usercode/run {:d} {!r}"
