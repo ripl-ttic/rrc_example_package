@@ -309,10 +309,13 @@ class SubmissionRunner:
             ". /setup.bash; {}".format(backend_rosrun_cmd),
         ]
 
+        # set DISPLAY env var
+        env = os.environ.copy()
+        env["SINGULARITYENV_DISPLAY"] = ":0"
         logging.info("Start backend")
         logging.debug(" ".join(run_backend_cmd))
         self.backend_process = subprocess.Popen(
-            run_backend_cmd, start_new_session=True
+            run_backend_cmd, start_new_session=True, env=env
         )
 
         logging.info("Wait until backend is ready...")
@@ -414,11 +417,16 @@ class SubmissionRunner:
         try:
             # TODO make sure the user cannot spawn processes that keep running after the
             # main one terminates (probably same method as for backend should be used).
+            # set DISPLAY env var
+            env = os.environ.copy()
+            env["SINGULARITYENV_DISPLAY"] = ":0"
+
             proc = subprocess.run(
                 run_user_cmd,
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                env=env
             )
             logging.info("User code terminated.")
             stdout = proc.stdout
