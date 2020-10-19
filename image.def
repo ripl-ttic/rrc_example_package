@@ -2,10 +2,17 @@
 Bootstrap: localimage
 From: ./realrobotchallenge.sif
 
+%setup
+# cp setup.py package.xml ${SINGULARITY_ROOTFS}/
+# cp -r python ${SINGULARITY_ROOTFS}/
+
+%files
+
 %post
     # Put commands to install additional dependencies here.
     # Make sure everything runs automatically without human input (e.g. add
     # `-y` to automatically say "yes" below).
+    # python3 -m pip install -e .
     python3 -m pip install tensorflow==1.15.0
     # python3 -m pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
     python3 -m pip install torch torchvision

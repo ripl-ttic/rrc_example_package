@@ -3,4 +3,4 @@
 # run the script via rosrun (for python scripts a simple symlink would also
 # work but using rosrun works for C++ executables as well)
 
-rosrun rrc random_motion_with_gym_env.py "$@"
+rosrun rrc run_physical_episode.py "$@"
