@@ -349,9 +349,6 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
     def _gym_action_to_robot_action(self, gym_action):
         # construct robot action depending on action type
-        print("HI")
-        print(self.action_type)
-        print(gym_action)
         if self.action_type == ActionType.TORQUE:
             robot_action = robot_interfaces.trifinger.Action(torque=gym_action)
         elif self.action_type == ActionType.POSITION:

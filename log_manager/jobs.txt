@@ -1,0 +1,12 @@
+ ID     OWNER          SUBMITTED   RUN_TIME     ST COMPLETED   CMD            
+7122.0   ardentstork    10/14 14:25   0+00:10:01 X         ???  /beegfs/pool2/shared/scripts/subrob_run.sh 
+7123.0   ardentstork    10/14 14:51   0+00:01:13 C  10/14 14:52 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7124.0   ardentstork    10/14 14:54   0+00:01:09 C  10/14 14:56 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7126.0   ardentstork    10/14 14:57   0+00:04:27 C  10/14 15:01 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7139.0   ardentstork    10/16 07:13   0+00:04:35 C  10/16 07:17 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7187.0   ardentstork    10/19 16:17   0+00:04:43 C  10/19 16:21 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7202.0   ardentstork    10/20 17:45   0+00:04:43 C  10/20 17:50 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7203.0   ardentstork    10/20 18:30   0+00:04:48 C  10/20 18:35 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7204.0   ardentstork    10/20 18:51   0+00:05:37 C  10/20 18:56 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7211.0   ardentstork    10/20 20:12   0+00:04:44 C  10/20 20:16 /beegfs/pool2/shared/scripts/subrob_run.sh 
+7214.0   ardentstork    10/20 20:29   0+00:04:43 C  10/20 20:34 /beegfs/pool2/shared/scripts/subrob_run.sh 
