@@ -15,4 +15,4 @@ username=`cat ${dir}/user.txt | head -n 1`
 jobs=$(ssh -T -i ${dir}/sshkey ${username}@${hostname} <<< history | tail -n +2 | awk -F'[. ]' '{print $1, $14}')
 
 echo ${jobs} | xargs -n 2 echo
-# echo ${jobs} | xargs -t -n 2 -P 10 bash ${dir}/after_job.sh ${logdir} ${image}
+echo ${jobs} | xargs -t -n 2 -P 10 bash ${dir}/after_job.sh ${logdir} ${image}
