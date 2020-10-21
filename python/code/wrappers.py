@@ -53,6 +53,29 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
         }
         return old_obs
 
+class InitStayHoldWrapper(gym.Wrapper):
+    '''
+    Oftentimes the initial pose of the robot is quite off from the robot_position.default.
+    And that causes annoying issues.
+    This wrapper forces to apply env._initial_action for the first "hold_steps" steps to properly reset the robot pose.
+    '''
+    def __init__(self, env, hold_steps=1000):
+        super().__init__(env)
+        self.hold_steps = hold_steps
+
+    def reset(self):
+        obs = self.env.reset()
+
+        # step environment for "hold_steps" steps
+        counter = 0
+        done = False
+        print('staying at the default position...')
+        while not done and counter < self.hold_steps:
+            obs, reward, done, info = self.env.step(self.env._initial_action)
+            counter += 1
+        print('staying at the default position... done')
+
+        return obs
 
 class FlatObservationWrapper(gym.ObservationWrapper):
     def __init__(self, env):
