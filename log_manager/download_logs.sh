@@ -22,8 +22,8 @@ fi
 
 # prompt for username and password (to avoid having user credentials in the
 # bash history)
-read -p "Username: " username
-read -sp "Password: " password
+username=`cat user.txt | head -n 1`
+password=`cat user.txt | sed -n '2 p'`
 # there is no automatic new line after the password prompt
 echo
 
@@ -48,7 +48,7 @@ function curl_check_if_exists()
 
 
 echo "Check ${job_id}"
-if curl_check_if_exists ${job_id}
+if curl_check_if_exists ${job_id}/report.json
 then
     # create directory for this job
     job_dir="${output_directory}/${job_id}"

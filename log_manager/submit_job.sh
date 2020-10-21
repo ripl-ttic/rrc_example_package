@@ -1,8 +1,8 @@
 #!/bin/bash
 # prompt for username and password (to avoid having user credentials in the
 # bash history)
-read -p "Username: " username
-read -sp "Password: " password
+username=`cat user.txt | head -n 1`
+password=`cat user.txt | sed -n '2 p'`
 # there is no automatic new line after the password prompt
 echo
 
@@ -29,12 +29,13 @@ function curl_check_if_exists()
 function submit_job()
 {
     echo "Submit job"
-    submit_result=$(ssh -T -i sshkey ${username}:${hostname} <<<submit)
-    job_id=$(echo ${submit_result} | grep -oP 'job\(s\) submitted to cluster \K[0-9]+')
+    submit_result=$(ssh -T -i sshkey ${username}@${hostname} <<<submit)
+    job_id=$(echo "${submit_result}" | cut -d' ' -f 6 | grep -oE '[0-9]+')
     if [ $? -ne 0 ]
     then
         echo "Failed to submit job.  Output:"
         echo "${submit_result}"
+        echo "Job ID ${job_id}"
         exit 1
     fi
     echo "Submitted job with ID ${job_id}"
@@ -83,6 +84,7 @@ function wait_for_job_finish()
         if curl_check_if_exists $1/report.json
         then
             local job_finished=1
+            echo "The job has finished."
             break
         fi
         date
