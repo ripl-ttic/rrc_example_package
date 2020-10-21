@@ -13,6 +13,7 @@ fi
 
 job_id=$1
 output_directory="$2"
+dir=`dirname $0`
 
 if ! [ -d "${output_directory}" ]
 then
@@ -22,8 +23,8 @@ fi
 
 # prompt for username and password (to avoid having user credentials in the
 # bash history)
-username=`cat user.txt | head -n 1`
-password=`cat user.txt | sed -n '2 p'`
+username=`cat ${dir}/user.txt | head -n 1`
+password=`cat ${dir}/user.txt | sed -n '2 p'`
 # there is no automatic new line after the password prompt
 echo
 
