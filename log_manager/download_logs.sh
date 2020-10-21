@@ -49,12 +49,11 @@ function curl_check_if_exists()
 
 
 echo "Check ${job_id}"
+# create directory for this job
+job_dir="${output_directory}/${job_id}"
+mkdir "${job_dir}"
 if curl_check_if_exists ${job_id}/report.json
 then
-    # create directory for this job
-    job_dir="${output_directory}/${job_id}"
-    mkdir "${job_dir}"
-
     echo "Download data to ${job_dir}"
 
     # Download data.  Here only the report file is downloaded as example.  Add
