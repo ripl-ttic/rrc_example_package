@@ -9,6 +9,7 @@ logdir=$1
 image=$2
 jobid=$3
 status=$4
+dir=`dirname $0`
 
 if [ -d ${logdir}/${jobid} ]; then
     exit
@@ -18,5 +19,5 @@ if [ ! ${status} == 'C' ]; then
     exit
 fi
 
-bash download_logs.sh ${jobid} ${logdir}
-bash make_video.sh ${image} ${logdir}/${jobid}
+bash ${dir}/download_logs.sh ${jobid} ${logdir}
+bash ${dir}/make_video.sh ${image} ${logdir}/${jobid}
