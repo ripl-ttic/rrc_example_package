@@ -18,5 +18,5 @@ if [ ! ${status} == 'C' ]; then
     exit
 fi
 
-cat user.txt | bash download_logs.sh ${jobid} ${logdir}
+bash download_logs.sh ${jobid} ${logdir}
 bash make_video.sh ${image} ${logdir}/${jobid}
