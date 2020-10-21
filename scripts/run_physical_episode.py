@@ -15,14 +15,15 @@ def main():
 
     difficulty = 3
     eval_config = {
-            'action_space': 'torque_and_position',
-            'frameskip': 3,
-            'residual': True,
-            'reward_fn': f'task{difficulty}_competition_reward',
-            'termination_fn': 'no_termination',
-            'initializer': f'task{difficulty}_init',
-            'monitor': False,
-            'rank': 0
+        'action_space': 'torque_and_position',
+        'frameskip': 3,
+        'residual': True,
+        'reward_fn': f'task{difficulty}_competition_reward',
+        'termination_fn': 'no_termination',
+        'initializer': f'task{difficulty}_init',
+        'monitor': False,
+        'rank': 0,
+        'episode_length': 20000
     }
     env = make_training_env(goal_dict, difficulty, sim=False, visualization=False,
                             **eval_config)

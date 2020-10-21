@@ -85,7 +85,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
         self.platform = None
         self.simulation = sim
         self.visualization = visualization
-        self.episode_length = episode_length if sim else move_cube.episode_length
+        # self.episode_length = episode_length if sim else move_cube.episode_length
+        self.episode_length = episode_length
 
         # Create the action and observation spaces
         # ========================================

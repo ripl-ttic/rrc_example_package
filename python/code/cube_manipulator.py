@@ -175,11 +175,11 @@ class CubeManipulator:
             return obs, cube_tip_positions, suc
         else:
             suc = True
-        act_seq = ease_out(act_seq, in_rep=3, out_rep=6)
+        act_seq = ease_out(act_seq, in_rep=3 * 20, out_rep=6 * 20)
         obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION)
         return obs, cube_tip_positions, suc
 
-    def grasp_approach(self, obs, avoid_top=False, in_rep=3, out_rep=8, **kwargs):
+    def grasp_approach(self, obs, avoid_top=False, in_rep=3 * 20, out_rep=8 * 20, **kwargs):
         from code.utils import repeat, ease_out
         act_seq = self.get_grasp_approach_actions(obs, avoid_top=avoid_top, **kwargs)
         act_seq = ease_out(act_seq, in_rep=in_rep, out_rep=out_rep)
