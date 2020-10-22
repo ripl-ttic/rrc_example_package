@@ -13,6 +13,7 @@ from trifinger_simulation.tasks import move_cube
 from .reward_fns import competition_reward
 from .pinocchio_utils import PinocchioUtils
 
+INIT_JOINT_CONF = np.array([0.0, 0.9, -2.0, 0.0, 0.9, -2.0, 0.0, 0.9, -2.0], dtype=np.float32)
 
 class ActionType(enum.Enum):
     """Different action types that can be used to control the robot."""
@@ -123,10 +124,10 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         if self.action_type == ActionType.TORQUE:
             self.action_space = robot_torque_space
-            self._initial_action = trifingerpro_limits.robot_torque.default
+            self.initial_action = trifingerpro_limits.robot_torque.default
         elif self.action_type == ActionType.POSITION:
             self.action_space = robot_position_space
-            self._initial_action = trifingerpro_limits.robot_position.default
+            self.initial_action = INIT_JOINT_CONF  # trifingerpro_limits.robot_position.default
         elif self.action_type == ActionType.TORQUE_AND_POSITION:
             self.action_space = gym.spaces.Dict(
                 {
@@ -134,9 +135,9 @@ class RealRobotCubeEnv(gym.GoalEnv):
                     "position": robot_position_space,
                 }
             )
-            self._initial_action = {
+            self.initial_action = {
                 "torque": trifingerpro_limits.robot_torque.default,
-                "position": trifingerpro_limits.robot_position.default,
+                "position": INIT_JOINT_CONF  # trifingerpro_limits.robot_position.default,
             }
         else:
             raise ValueError("Invalid action_type")
@@ -252,7 +253,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         # need to already do one step to get initial observation
         # TODO disable frameskip here?
-        self.prev_observation, _, _, _ = self.step(self._initial_action)
+        self.prev_observation, _, _, _ = self.step(self.initial_action)
         return self.prev_observation
 
     def _reset_platform_frontend(self):
