@@ -59,7 +59,7 @@ class InitStayHoldWrapper(gym.Wrapper):
     '''
     Oftentimes the initial pose of the robot is quite off from the robot_position.default.
     And that causes annoying issues.
-    This wrapper forces to apply env._initial_action for the first "hold_steps" steps to properly reset the robot pose.
+    This wrapper forces to apply env.initial_action for the first "hold_steps" steps to properly reset the robot pose.
     '''
     def __init__(self, env, hold_steps=400):
         super().__init__(env)
@@ -85,7 +85,7 @@ class InitStayHoldWrapper(gym.Wrapper):
 
             action = {
                 'position': desired_position,
-                'torque': trifingerpro_limits.robot_torque.default
+                'torque': self.env.initial_action['torque']
             }
             obs, reward, done, info = self.env.step(action)
             counter += 1

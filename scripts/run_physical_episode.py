@@ -72,20 +72,16 @@ def main():
         # }
         # assert zero_action['torque'].dtype == np.float64
         # assert zero_action['position'].dtype == np.float64
-        zero_action = env._initial_action
+        zero_action = env.initial_action
     else:
         # zero_action = np.array(env.action_space.sample() * 0).astype(np.float64)
         # assert zero_action.dtype == np.float64
-        zero_action = env._initial_action
+        zero_action = env.initial_action
 
     import random
     import time
     counter = 0
     while not done:
-        # create intentional delay
-        if counter > 100 and random.random() < 0.3:
-            time.sleep(0.1)
-
         obs, reward, done, info = env.step(zero_action)
         accumulated_reward += reward
         counter += 1
