@@ -3,10 +3,12 @@ import pybullet as p
 import numpy as np
 import gym
 from trifinger_simulation import TriFingerPlatform
+from trifinger_simulation import trifingerpro_limits
 from trifinger_simulation import camera
 from code.env.cube_env import ActionType
 import cv2
 from dl import nest
+from code.const import INIT_JOINT_CONF
 
 EXCEP_MSSG = "================= captured exception =================\n" + \
     "{message}\n" + "{error}\n" + '=================================='
@@ -59,7 +61,7 @@ class InitStayHoldWrapper(gym.Wrapper):
     And that causes annoying issues.
     This wrapper forces to apply env._initial_action for the first "hold_steps" steps to properly reset the robot pose.
     '''
-    def __init__(self, env, hold_steps=1000):
+    def __init__(self, env, hold_steps=600):
         super().__init__(env)
         self.hold_steps = hold_steps
 
@@ -69,11 +71,26 @@ class InitStayHoldWrapper(gym.Wrapper):
         # step environment for "hold_steps" steps
         counter = 0
         done = False
-        print('staying at the default position...')
         while not done and counter < self.hold_steps:
-            obs, reward, done, info = self.env.step(self.env._initial_action)
+            desired_position = np.copy(obs['robot_position'])
+            # close the bottom joint (joint 2) first, and then close other joints together (joint 0, joint 1)
+            if counter < self.hold_steps / 3:
+                # close joint 2
+                for i in range(3):
+                    desired_position[3 * i + 2] = -2.0   # joint 2 (default: -1.7, min: -2.7, max: 0.0)
+            elif counter < self.hold_steps * 2 / 3:
+                for i in range(3):
+                    desired_position[3 * i + 1] = INIT_JOINT_CONF[3 * i + 1]   # joint 1
+            else:
+                desired_position = INIT_JOINT_CONF
+
+            print(desired_position)
+            action = {
+                'position': desired_position,
+                'torque': trifingerpro_limits.robot_torque.default
+            }
+            obs, reward, done, info = self.env.step(action)
             counter += 1
-        print('staying at the default position... done')
 
         return obs
 

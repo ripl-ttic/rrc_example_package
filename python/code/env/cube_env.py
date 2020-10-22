@@ -13,6 +13,7 @@ from trifinger_simulation.tasks import move_cube
 from .reward_fns import competition_reward
 from .pinocchio_utils import PinocchioUtils
 
+INIT_JOINT_CONF = np.array([0.0, 0.9, -2.0, 0.0, 0.9, -2.0, 0.0, 0.9, -2.0], dtype=np.float32)
 
 class ActionType(enum.Enum):
     """Different action types that can be used to control the robot."""
@@ -125,7 +126,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
             self._initial_action = trifingerpro_limits.robot_torque.default
         elif self.action_type == ActionType.POSITION:
             self.action_space = robot_position_space
-            self._initial_action = trifingerpro_limits.robot_position.default
+            self._initial_action = INIT_JOINT_CONF  # trifingerpro_limits.robot_position.default
         elif self.action_type == ActionType.TORQUE_AND_POSITION:
             self.action_space = gym.spaces.Dict(
                 {
@@ -135,7 +136,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
             )
             self._initial_action = {
                 "torque": trifingerpro_limits.robot_torque.default,
-                "position": trifingerpro_limits.robot_position.default,
+                "position": INIT_JOINT_CONF  # trifingerpro_limits.robot_position.default,
             }
         else:
             raise ValueError("Invalid action_type")
