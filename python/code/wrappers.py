@@ -61,7 +61,7 @@ class InitStayHoldWrapper(gym.Wrapper):
     And that causes annoying issues.
     This wrapper forces to apply env._initial_action for the first "hold_steps" steps to properly reset the robot pose.
     '''
-    def __init__(self, env, hold_steps=600):
+    def __init__(self, env, hold_steps=400):
         super().__init__(env)
         self.hold_steps = hold_steps
 
@@ -71,20 +71,18 @@ class InitStayHoldWrapper(gym.Wrapper):
         # step environment for "hold_steps" steps
         counter = 0
         done = False
+        initial_position = obs['robot_position']
         while not done and counter < self.hold_steps:
-            desired_position = np.copy(obs['robot_position'])
+            desired_position = np.copy(initial_position)
             # close the bottom joint (joint 2) first, and then close other joints together (joint 0, joint 1)
-            if counter < self.hold_steps / 3:
+            if counter < self.hold_steps / 2:
                 # close joint 2
                 for i in range(3):
-                    desired_position[3 * i + 2] = -2.0   # joint 2 (default: -1.7, min: -2.7, max: 0.0)
-            elif counter < self.hold_steps * 2 / 3:
-                for i in range(3):
-                    desired_position[3 * i + 1] = INIT_JOINT_CONF[3 * i + 1]   # joint 1
+                    desired_position[3 * i + 2] = -2.4   # joint 2 (default: -1.7, min: -2.7, max: 0.0)
+                    desired_position[3 * i + 1] = 1.4   # joint 1 (default: 0.9, min: 0.0, max: 1.57)
             else:
                 desired_position = INIT_JOINT_CONF
 
-            print(desired_position)
             action = {
                 'position': desired_position,
                 'torque': trifingerpro_limits.robot_torque.default
