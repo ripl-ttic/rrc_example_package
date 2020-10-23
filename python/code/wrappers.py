@@ -492,7 +492,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         self.env.register_custom_log('grasp_motion', action_seq)
         self.env.register_custom_log('grasp_tip_pos', self.planning_fc_policy.get_cube_tip_pos())
 
-        act_seq = ease_out(action_seq, in_rep=3 , out_rep=8 )
+        act_seq = ease_out(action_seq, in_rep=3 * 40, out_rep=8 * 40)
         obs = self.cube_manipulator._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
