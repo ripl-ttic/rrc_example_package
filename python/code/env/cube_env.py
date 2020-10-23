@@ -377,7 +377,9 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
     def save_custom_logs(self):
         if not os.path.isdir(CUSTOM_LOGDIR):
+            print('{} does not exist. skip saving custom logs.'.format(CUSTOM_LOGDIR))
             return
-        with shelve.open(CUSTOM_LOGDIR + '/custom_data') as f:
+        path = os.path.join(CUSTOM_LOGDIR, 'custom_data')
+        with shelve.open(path) as f:
             for key, val in self.custom_logs.items():
                 f[key] = val
