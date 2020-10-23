@@ -1,5 +1,7 @@
 """Gym environment for the Real Robot Challenge Phase 1 (Simulation)."""
+import os
 import enum
+import shelve
 
 import gym
 import numpy as np
@@ -12,8 +14,8 @@ from trifinger_simulation import trifingerpro_limits
 from trifinger_simulation.tasks import move_cube
 from .reward_fns import competition_reward
 from .pinocchio_utils import PinocchioUtils
+from code.const import CUSTOM_LOGDIR, INIT_JOINT_CONF
 
-INIT_JOINT_CONF = np.array([0.0, 0.9, -2.0, 0.0, 0.9, -2.0, 0.0, 0.9, -2.0], dtype=np.float32)
 
 class ActionType(enum.Enum):
     """Different action types that can be used to control the robot."""
@@ -86,8 +88,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
         self.platform = None
         self.simulation = sim
         self.visualization = visualization
-        # self.episode_length = episode_length if sim else move_cube.episode_length
         self.episode_length = episode_length
+        self.custom_logs = {}
 
         # Create the action and observation spaces
         # ========================================
@@ -232,9 +234,13 @@ class RealRobotCubeEnv(gym.GoalEnv):
             if self.step_count >= self.episode_length - 1:
                 break
 
-        is_done = self.step_count == self.episode_length
+        is_done = self.step_count >= self.episode_length
         if self._termination_fn is not None:
             is_done = is_done or self._termination_fn(observation)
+
+        if is_done:
+            print('saving custom logs...')
+            self.save_custom_logs()
 
         return observation, reward, is_done, self.info
 
@@ -365,3 +371,15 @@ class RealRobotCubeEnv(gym.GoalEnv):
             raise ValueError("Invalid action_type")
 
         return robot_action
+
+    def register_custom_log(self, name, data):
+        self.custom_logs[name] = data
+
+    def save_custom_logs(self):
+        if not os.path.isdir(CUSTOM_LOGDIR):
+            print('{} does not exist. skip saving custom logs.'.format(CUSTOM_LOGDIR))
+            return
+        path = os.path.join(CUSTOM_LOGDIR, 'custom_data')
+        with shelve.open(path) as f:
+            for key, val in self.custom_logs.items():
+                f[key] = val

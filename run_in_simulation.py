@@ -16,7 +16,8 @@ import shutil
 from shutil import ignore_patterns
 
 
-episode_length = 2 * 60 * 1000
+# episode_length = 2 * 60 * 1000
+episode_length = 2 * 10 * 1000
 
 
 class LocalExecutionConfig:
