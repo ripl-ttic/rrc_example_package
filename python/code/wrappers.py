@@ -468,7 +468,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
     def _instantiate_planning_fc_policy(self, obs):
         from code.fc_planned_motion import PlanningAndForceControlPolicy
         planning_fc_policy = PlanningAndForceControlPolicy(
-            self.env, obs, self.fc_policy, action_repeat=self.action_repeat,
+            self.env, obs, self.fc_policy,
             align_goal_ori=self.align_goal_ori, use_rrt=self.use_rrt,
             use_incremental_rrt=self.use_incremental_rrt
         )
