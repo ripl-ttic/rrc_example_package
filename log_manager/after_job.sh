@@ -21,3 +21,4 @@ fi
 
 bash ${dir}/download_logs.sh ${jobid} ${logdir}
 bash ${dir}/make_video.sh ${image} ${logdir}/${jobid}
+bash ${dir}/make_plots.sh ${image} ${logdir}/${jobid}
