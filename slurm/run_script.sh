@@ -13,7 +13,5 @@ fi
 cd $RRC_ROOT
 mounts=`python slurm/build_ws.py $@`
 echo ${mounts}
-# singularity exec --cleanenv --contain --nv -B ${mounts} $RRC_IMAGE bash -c \
-#     ". /setup.bash; . /ws/devel/setup.bash; python3 /ws/src/usercode/python/code/train_ppo.py /logdir/singularity_config.yaml"
 singularity exec --cleanenv --contain --nv -B ${mounts} $RRC_IMAGE bash -c \
-    ". /setup.bash; . /ws/devel/setup.bash; bash"
+    ". /setup.bash; . /ws/devel/setup.bash; python3 /ws/src/usercode/python/code/train_ppo.py /logdir/singularity_config.yaml"
