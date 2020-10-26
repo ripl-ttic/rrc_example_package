@@ -64,7 +64,7 @@ class WholeBodyPlanner:
              min_goal_threshold=0.01, max_goal_threshold=0.8, use_ori=False):
         goal_pos = obs['goal_object_position'] if goal_pos is None else goal_pos
         goal_quat = obs['goal_object_orientation'] if goal_quat is None else goal_quat
-        resolutions = 0.03 * np.array([0.3, 0.3, 0.3, 1, 1, 1])  # roughly equiv to the lengths of one step.
+        resolutions = 0.01 * np.array([0.3, 0.3, 0.3, 1, 1, 1])  # roughly equiv to the lengths of one step.
 
         goal_ori = p.getEulerFromQuaternion(goal_quat)
         target_pose = np.concatenate([goal_pos, goal_ori])
