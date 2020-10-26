@@ -447,3 +447,101 @@ class PyBulletClearGUIWrapper(gym.Wrapper):
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=0, cameraPitch=-40, cameraTargetPosition=[0,0,0])
         return obs
+
+class RandomizedEnvWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.first_run = True
+                
+    def reset(self):
+        obs = self.env.reset()
+        if self.first_run:
+            
+            self.finger_id = self.env.platform.simfinger.finger_id
+            self.joint_indices = self.env.platform.simfinger.pybullet_joint_indices
+            self.link_indices = self.env.platform.simfinger.pybullet_link_indices
+            self.client_id = self.env.platform.simfinger._pybullet_client_id
+            
+            #TODO:
+            #add cube params
+            #figure out why the trifinger falling down to ground when mass and maxJointVelocity are set at the same time
+            #add adoptive randomizer that randomize env depending on policy performance 
+            
+            #copied from __set_pybullet_params in simfinger.py
+            self.default_params = {
+                'mass': [0.26, 0.25, 0.021], #setting mass and maxJointVelocity at the same makes simfinger falling down????
+                #'maxJointVelocity':10,
+                'restitution':0.8,
+                'jointDamping':0.0,
+                'lateralFriction':0.1,
+                'spinningFriction':0.1,
+                'rollingFriction':0.1,
+                'linearDamping':0.5,
+                'angularDamping':0.5,
+                'contactStiffness':0.1,
+                'contactDamping':0.05
+            }
+            
+            # for link_id in self.link_indices:
+            #      p.changeDynamics(bodyUniqueId=self.finger_id, linkIndex=link_id, physicsClientId=self.client_id,
+            #                       mass=100, maxJointVelocity=10)
+            
+            #cannot get all information by getDynamicsInfo. this returns parts of parameter values set 
+            for ind in self.link_indices[:3]:
+                print(p.getDynamicsInfo(bodyUniqueId=self.finger_id, linkIndex=ind, physicsClientId=self.client_id))    
+            
+            self.first_run=False
+        
+        self.randomize()
+        #self.set_default()
+        #self.set_params(**{'mass':100})
+        
+        return obs
+        
+    def randomize(self):
+        params = {}
+        dic = self.default_params
+        for k in dic.keys():
+            if type(dic[k]) in [float, int]:
+                params[k] = dic[k] * np.random.uniform(low=0.9, high=1.1)
+            elif type(dic[k]) in [list, np.ndarray]:
+                params[k] = np.array(dic[k]) * np.random.uniform(low=0.9, high=1.1, size=len(dic[k]))
+            else:
+                raise(ValueError)                
+            
+        self.set_params(**params)
+        
+            
+    def set_default(self):
+        self.set_params(**self.default_params)
+                             
+    def set_params(self, **kwargs):
+        # set params by passing kw dictionary
+        # all values of dict should be list which length is 3 or 9 for different params or float/int for the same param
+        
+        self.check_param_dict(kwargs)
+        for i, link_id in enumerate(self.link_indices):
+            joint_kwargs = self.get_param_dict(kwargs, i)
+            #print(link_id, joint_kwargs)
+            p.changeDynamics(bodyUniqueId=self.finger_id, linkIndex=link_id, physicsClientId=self.client_id,
+                             **joint_kwargs)
+            
+            
+    def check_param_dict(self, dic):
+        for v in dic.values():
+            assert (type(v) in [list, np.ndarray] and len(v) in [3, 9]) or type(v) in [float, int]
+                
+            
+    def get_param_dict(self, dic, i):
+        ret_dic = {}
+        for k in dic.keys():
+            if type(dic[k]) in [float, int]:
+                ret_dic[k] = dic[k]
+            elif type(dic[k]) in [list, np.ndarray] and len(dic[k]) == 3:
+                ret_dic[k] = dic[k][i%3]
+            elif type(dic[k]) in [list, np.ndarray] and len(dic[k]) == 9:
+                ret_dic[k] = dic[k][i]
+            else:
+                raise(ValueError)
+            
+        return ret_dic
