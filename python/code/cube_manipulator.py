@@ -338,7 +338,8 @@ class CubeManipulator:
                     MaxDist(dist=0.015, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
                 ],
                 'diagnosis': False,
-                'smooth':1200
+                'smooth':1200,
+                'resolutions': 0.01
             }
         return config
 
