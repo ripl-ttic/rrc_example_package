@@ -235,7 +235,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
         if self._termination_fn is not None:
             is_done = is_done or self._termination_fn(observation)
 
-        return observation, reward, is_done, self.info
+        return observation, reward, is_done, self.info.copy()
 
     def reset(self):
         # By changing the `_reset_*` method below you can switch between using

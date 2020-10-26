@@ -10,6 +10,7 @@ algorithm: grid
 params:
     base_config: python/code/configs/residual_ppo.gin
     gin_bindings:
+        ResidualPPO2.policy_fn: "@policy_fn"
         make_pybullet_env.goal_difficulty: 3
         make_pybullet_env.action_space: torque
         make_pybullet_env.termination_fn: position_close_to_goal
