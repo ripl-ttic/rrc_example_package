@@ -21,7 +21,7 @@ from code.const import MU, VIRTUAL_CUBE_HALFWIDTH
 from collections import namedtuple
 
 class PlanningAndForceControlPolicy:
-    def __init__(self, env, obs, fc_policy, action_repeat=2 * 20, align_goal_ori=True,
+    def __init__(self, env, obs, fc_policy, action_repeat=2, align_goal_ori=True,
                  use_rrt=False, use_incremental_rrt=False, constants=None):
         if constants is None:
             constants = self._get_default_constants()

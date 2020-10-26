@@ -78,7 +78,10 @@ class EvalEpisodesInitializer:
             self.episodes.append(EvalEpisode(init, goal))
 
 class Task4SmallRotation:
-    def __init__(self, orientation_error_threshold=np.pi/2 * 0.5):
+    def __init__(self, difficulty, orientation_error_threshold=np.pi/2 * 0.5):
+        if difficulty != 4:
+            raise ValueError("Task4SmallRotation initializer should only be "
+                             f"used with goal difficulty 4. difficulty: {difficulty}")
         self.difficulty = 4
         self.init = None
         self.orientation_error_threshold = orientation_error_threshold
@@ -117,15 +120,7 @@ class Task4SmallRotation:
         # weight xy- and z-parts by their expected range
         return (xy_dist / range_xy_dist + z_dist / range_z_dist) / 2
 
-task1_init = RandomInitializer(difficulty=1)
-task2_init = RandomInitializer(difficulty=2)
-task3_init = RandomInitializer(difficulty=3)
-task4_init = RandomInitializer(difficulty=4)
 
-# Each line internally loads large number of json files, but it runs pretty fast (<0.2s in total) on a laptop. So it'd be all right.
-task1_eval_init = EvalEpisodesInitializer(difficulty=1)
-task2_eval_init = EvalEpisodesInitializer(difficulty=2)
-task3_eval_init = EvalEpisodesInitializer(difficulty=3)
-task4_eval_init = EvalEpisodesInitializer(difficulty=4)
-
-task4_small_rot_init = Task4SmallRotation()
+random_init = RandomInitializer
+eval_init = EvalEpisodesInitializer
+task4_small_rot_init = Task4SmallRotation

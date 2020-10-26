@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
 import pybullet as p
-import random
 from code.make_env import make_training_env
-from code.env.initializers import task1_init
 import numpy as np
-import pybullet as p
 import time
-from trifinger_simulation import visual_objects
-from code.utils import sample_cube_surface_points, apply_transform, set_seed, VisualCubeOrientation
-from pybullet_planning import plan_joint_motion, plan_wholebody_motion
+from code.utils import apply_transform, set_seed, VisualCubeOrientation
+from pybullet_planning import plan_wholebody_motion
 import argparse
-from itertools import product
 from collections import namedtuple
-from trifinger_simulation.tasks.move_cube import _CUBE_WIDTH, _ARENA_RADIUS, _min_height, _max_height
+from trifinger_simulation.tasks.move_cube import _ARENA_RADIUS, _min_height, _max_height
 from code.grasp_sampling import GraspSampler
 from code.const import COLLISION_TOLERANCE
 

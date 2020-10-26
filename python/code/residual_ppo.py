@@ -13,21 +13,39 @@ import time
 import numpy as np
 from dl.rl.envs import SubprocVecEnv, DummyVecEnv, EpisodeInfo, VecObsNormWrapper
 from code.make_env import make_training_env
+from trifinger_simulation.tasks import move_cube
 
 
 @gin.configurable
-def make_pybullet_env(nenv, reward_fn, termination_fn, initializer, action_space,
-                      init_joint_conf=False, residual=False, kp_coef=None,
-                      kd_coef=None, frameskip=1, seed=0,
-                      norm_observations=False, visualization=False,
-                      grasp='pinch', monitor=False):
+def make_pybullet_env(nenv, goal_difficulty, action_space, frameskip=1,
+                      visualization=False, reward_fn=None, termination_fn=None,
+                      initializer=None, episode_length=120000, residual=False,
+                      monitor=False, seed=0, norm_observations=False):
+
+    # dummy goal dict
+    goal = move_cube.sample_goal(goal_difficulty)
+    goal_dict = {
+        'position': goal.position,
+        'orientation': goal.orientation
+    }
 
     def _env(rank):
         def _thunk():
-            env = make_training_env(reward_fn, termination_fn, initializer,
-                                    action_space, init_joint_conf, residual,
-                                    kp_coef, kd_coef, frameskip, rank,
-                                    visualization, grasp, monitor)
+            env = make_training_env(
+                cube_goal_pose=goal_dict,
+                goal_difficulty=goal_difficulty,
+                action_space=action_space,
+                frameskip=frameskip,
+                sim=True,
+                visualization=visualization,
+                reward_fn=reward_fn,
+                termination_fn=termination_fn,
+                initializer=initializer,
+                episode_length=episode_length,
+                residual=residual,
+                rank=rank,
+                monitor=monitor
+            )
             env = EpisodeInfo(env)
             env.seed(seed + rank)
             return env

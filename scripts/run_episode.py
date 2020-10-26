@@ -33,9 +33,9 @@ def main():
             'action_space': 'torque_and_position',
             'frameskip': 3,
             'residual': True,
-            'reward_fn': f'task{difficulty}_competition_reward',
+            'reward_fn': 'competition_reward',
             'termination_fn': 'no_termination',
-            'initializer': f'task{difficulty}_init',
+            'initializer': 'random_init',
             'monitor': False,
             'rank': 0
     }

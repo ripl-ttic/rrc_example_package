@@ -19,24 +19,30 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
         self.observation_names = [
             "robot_position",
             "robot_velocity",
+            "robot_torque",
             "robot_tip_positions",
             "object_position",
             "object_orientation",
             "goal_object_position",
             "goal_object_orientation",
             "tip_force",
+            "action_torque",
+            "action_position"
         ]
 
         self.observation_space = gym.spaces.Dict(
             {
                 "robot_position": env.observation_space['robot']['position'],
                 "robot_velocity": env.observation_space['robot']['velocity'],
+                "robot_torque": env.observation_space['robot']['torque'],
                 "robot_tip_positions": env.observation_space['robot']['tip_positions'],
                 "object_position": env.observation_space["achieved_goal"]["position"],
                 "object_orientation": env.observation_space["achieved_goal"]["orientation"],
                 "goal_object_position": env.observation_space["desired_goal"]["position"],
                 "goal_object_orientation": env.observation_space["desired_goal"]["orientation"],
                 "tip_force": env.observation_space["robot"]["tip_force"],
+                "action_torque": env.observation_space['robot']['torque'],
+                "action_position": env.observation_space['robot']['position'],
             }
         )
 
@@ -44,6 +50,7 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
         old_obs = {
             "robot_position": obs['robot']['position'],
             "robot_velocity": obs['robot']['velocity'],
+            "robot_torque": obs['robot']['torque'],
             "robot_tip_positions": obs['robot']['tip_positions'],
             "tip_force": obs['robot']['tip_force'],
             "object_position": obs['achieved_goal']['position'],
@@ -51,6 +58,15 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
             "goal_object_position": obs['desired_goal']['position'],
             "goal_object_orientation": obs['desired_goal']['orientation'],
         }
+        if self.action_space == self.observation_space['robot_position']:
+            old_obs['action_torque'] = np.zeros_like(obs['action'])
+            old_obs['action_position'] = obs['action']
+        elif self.action_space == self.observation_space['robot_torque']:
+            old_obs['action_torque'] = obs['action']
+            old_obs['action_position'] = np.zeros_like(obs['action'])
+        else:
+            old_obs['action_torque'] = obs['action']['torque']
+            old_obs['action_position'] = obs['action']['position']
         return old_obs
 
 
@@ -91,26 +107,10 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         assert self.env.action_type == ActionType.TORQUE
         self.action_space = TriFingerPlatform.spaces.robot_torque.gym
         spaces = TriFingerPlatform.spaces
-        self.observation_space = gym.spaces.Dict(
-            {
-                "robot_position": spaces.robot_position.gym,
-                "robot_velocity": spaces.robot_velocity.gym,
-                "robot_tip_positions": gym.spaces.Box(
-                    low=np.array([spaces.object_position.low] * 3),
-                    high=np.array([spaces.object_position.high] * 3),
-                ),
-                "object_position": spaces.object_position.gym,
-                "object_orientation": spaces.object_orientation.gym,
-                "goal_object_position": spaces.object_position.gym,
-                "goal_object_orientation": spaces.object_orientation.gym,
-                "tip_force": gym.spaces.Box(
-                    low=np.zeros(3),
-                    high=np.ones(3),
-                ),
-                "torque_action": spaces.robot_torque.gym,
-            }
-        )
-        self.observation_names.append("torque_action")
+        ob_space = dict(self.observation_space.spaces)
+        ob_space['base_action_torque'] = spaces.robot_torque.gym
+        self.observation_space = gym.spaces.Dict(ob_space)
+        self.observation_names.append("base_action_torque")
         from code.fc_force_control import ForceControlPolicy
         self.pi = ForceControlPolicy(self.env, apply_torques=apply_torques)
         self.cube_manipulator = CubeManipulator(env)
@@ -124,9 +124,9 @@ class ResidualLearningFCWrapper(gym.Wrapper):
     def _add_action_to_obs(self, obs, ac=None):
         ts = TriFingerPlatform.spaces.robot_torque.gym
         if ac is None:
-            obs['torque_action'] = np.zeros(ts.shape)
+            obs['base_action_torque'] = np.zeros(ts.shape)
         else:
-            obs['torque_action'] = self._norm_actions(ac)
+            obs['base_action_torque'] = self._norm_actions(ac)
         return obs
 
     def reset(self):
@@ -258,28 +258,12 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         from code.const import MU
 
         spaces = TriFingerPlatform.spaces
-        self.observation_space = gym.spaces.Dict(
-            {
-                "robot_position": spaces.robot_position.gym,
-                "robot_velocity": spaces.robot_velocity.gym,
-                "robot_tip_positions": gym.spaces.Box(
-                    low=np.array([spaces.object_position.low] * 3),
-                    high=np.array([spaces.object_position.high] * 3),
-                ),
-                "object_position": spaces.object_position.gym,
-                "object_orientation": spaces.object_orientation.gym,
-                "goal_object_position": spaces.object_position.gym,
-                "goal_object_orientation": spaces.object_orientation.gym,
-                "tip_force": gym.spaces.Box(
-                    low=np.zeros(3),
-                    high=np.ones(3),
-                ),
-                "torque_action": spaces.robot_torque.gym,
-                "position_action": spaces.robot_position.gym,
-            }
-        )
-        self.observation_names.append("torque_action")
-        self.observation_names.append("position_action")
+        ob_space = dict(self.observation_space.spaces)
+        ob_space['base_action_torque'] = spaces.robot_torque.gym
+        ob_space['base_action_position'] = spaces.robot_position.gym
+        self.observation_space = gym.spaces.Dict(ob_space)
+        self.observation_names.append("base_action_torque")
+        self.observation_names.append("base_action_position")
 
         assert self.env.action_type == ActionType.TORQUE_AND_POSITION
         # self.action_type = ActionType.TORQUE
@@ -313,12 +297,12 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         ts = TriFingerPlatform.spaces.robot_torque.gym
         ps = TriFingerPlatform.spaces.robot_position.gym
         if ac is None:
-            obs['torque_action'] = np.zeros(ts.shape)
-            obs['position_action'] = np.zeros(ps.shape)
+            obs['base_action_torque'] = np.zeros(ts.shape)
+            obs['base_action_position'] = np.zeros(ps.shape)
         else:
             ac = self._norm_actions(ac)
-            obs['torque_action'] = ac['torque']
-            obs['position_action'] = ac['position']
+            obs['base_action_torque'] = ac['torque']
+            obs['base_action_position'] = ac['position']
         return obs
 
     def reset(self):
@@ -333,7 +317,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
                 print(EXCEP_MSSG.format(message='cube flipping seemed to fail...', error=str(e)))
                 # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
                 # NOTE: Also, this is not allowed for evaluation.
-                raise e
                 if not self.__evaluation:
                     if 'Monitor' in str(self.env):
                         self.env.stats_recorder.save_complete()
@@ -352,7 +335,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
             print(EXCEP_MSSG.format(message='wholebody_planning seeemed to fail...', error=str(e)))
             # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
             # NOTE: Also, this is not allowed for evaluation.
-            raise e
             if not self.__evaluation:
                 if 'Monitor' in str(self.env):
                     self.env.stats_recorder.save_complete()
@@ -371,7 +353,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
                 print(EXCEP_MSSG.format(message='planning to grasp the cube seeemed to fail...', error=str(e)))
                 # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
                 # NOTE: Also, this is not allowed for evaluation.
-                raise e
                 if not self.__evaluation:
                     if 'Monitor' in str(self.env):
                         self.env.stats_recorder.save_complete()

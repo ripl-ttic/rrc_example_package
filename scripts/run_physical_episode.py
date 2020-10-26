@@ -5,7 +5,6 @@ from code.make_env import make_training_env
 from trifinger_simulation.tasks import move_cube
 from code.env.cube_env import ActionType
 
-
 def main():
     goal = move_cube.sample_goal(3)
     goal_dict = {
@@ -18,9 +17,9 @@ def main():
         'action_space': 'torque_and_position',
         'frameskip': 3,
         'residual': True,
-        'reward_fn': f'task{difficulty}_competition_reward',
+        'reward_fn': 'competition_reward',
         'termination_fn': 'no_termination',
-        'initializer': f'task{difficulty}_init',
+        'initializer': 'random_init',
         'monitor': False,
         'rank': 0,
         'episode_length': 20000

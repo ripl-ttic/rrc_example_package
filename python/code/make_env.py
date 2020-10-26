@@ -1,5 +1,5 @@
 from code.env.cube_env import RealRobotCubeEnv, ActionType
-from code.wrappers import *
+from code import wrappers
 
 
 def get_initializer(name):
@@ -40,7 +40,7 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
                       residual=False, rank=0, monitor=False):
     is_level_4 = goal_difficulty == 4
     reward_fn = get_reward_fn(reward_fn)
-    initializer = get_initializer(initializer)
+    initializer = get_initializer(initializer)(goal_difficulty)
     termination_fn = get_termination_fn(termination_fn)
     if action_space not in ['torque', 'position', 'torque_and_position', 'position_and_torque']:
         raise ValueError(f"Unknown action space: {action_space}.")
@@ -62,14 +62,14 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
                            episode_length=episode_length)
     env.seed(seed=rank)
     env.action_space.seed(seed=rank)
-    env = NewToOldObsWrapper(env)
+    env = wrappers.NewToOldObsWrapper(env)
     if visualization:
-        env = PyBulletClearGUIWrapper(env)
+        env = wrappers.PyBulletClearGUIWrapper(env)
     if monitor:
         from gym.wrappers import Monitor
         from code.const import TMP_VIDEO_DIR
         env = Monitor(
-            RenderWrapper(env),
+            wrappers.RenderWrapper(env),
             TMP_VIDEO_DIR,
             video_callable=lambda episode_id: True,
             mode='evaluation'
@@ -77,16 +77,19 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
     if residual:
         if action_space == 'torque':
             # env = JointConfInitializationWrapper(env, heuristic=grasp)
-            env = ResidualLearningFCWrapper(env, apply_torques=is_level_4,
-                                            is_level_4=is_level_4)
+            env = wrappers.ResidualLearningFCWrapper(env, apply_torques=is_level_4,
+                                                     is_level_4=is_level_4)
         elif action_space == 'torque_and_position':
-            env = ResidualLearningMotionPlanningFCWrapper(env, apply_torques=is_level_4,
-                                                          action_repeat=2,
-                                                          align_goal_ori=is_level_4,
-                                                          use_rrt=is_level_4,
-                                                          init_cube_manip='flip_and_grasp' if is_level_4 else 'grasp',
-                                                          evaluation=False)
+            env = wrappers.ResidualLearningMotionPlanningFCWrapper(
+                env,
+                apply_torques=is_level_4,
+                action_repeat=2,
+                align_goal_ori=is_level_4,
+                use_rrt=is_level_4,
+                init_cube_manip='flip_and_grasp' if is_level_4 else 'grasp',
+                evaluation=False
+            )
         else:
             raise ValueError(f"Can't do residual learning with {action_space}")
-    env = FlatObservationWrapper(env)
+    env = wrappers.FlatObservationWrapper(env)
     return env
