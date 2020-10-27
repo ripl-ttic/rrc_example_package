@@ -329,6 +329,10 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
 
         # wholebody motion planning
         try:
+            self.env.register_custom_log('init_cube_pos', obs['object_position'])
+            self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
+            self.env.register_custom_log('goal_pos', obs['goal_object_position'])
+            self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
             # This does planning inside
             self.planning_fc_policy = self._instantiate_planning_fc_policy(obs)
         except Exception as e:
@@ -371,6 +375,8 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         self._timestep = 0
         self._maybe_reset_viz(obs)
         self._base_action = self.planning_fc_policy.get_action(obs, self._timestep)
+        self.env.register_custom_log('wholebody_planning.cube', self.planning_fc_policy.path.cube)
+        self.env.register_custom_log('wholebody_planning.joint', self.planning_fc_policy.path.joint_conf)
         return self._add_action_to_obs(obs, self._base_action)
 
     def step(self, res_action):
@@ -419,12 +425,18 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
 
 
     def _grasp_approach(self, obs):
-        obs = self.cube_manipulator.grasp_approach(
+        from code.utils import repeat, ease_out
+        action_seq = self.cube_manipulator.get_grasp_approach_actions(
             obs,
             cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
             cube_pose=self.planning_fc_policy.get_init_cube_pose(),
             margin_coef=1.3,
             n_trials=1)
+        self.env.register_custom_log('grasp_motion', action_seq)
+        self.env.register_custom_log('grasp_tip_pos', self.planning_fc_policy.get_cube_tip_pos())
+
+        act_seq = ease_out(action_seq, in_rep=3 , out_rep=8 )
+        obs = self.cube_manipulator._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
     def _tighten_grasp(self, obs, grasp_force=0.8):

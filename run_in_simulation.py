@@ -15,7 +15,8 @@ import sys
 import shutil
 
 
-episode_length = 2 * 60 * 1000
+# episode_length = 2 * 60 * 1000
+episode_length = 2 * 10 * 1000
 
 
 class LocalExecutionConfig:

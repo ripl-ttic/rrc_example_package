@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import numpy as np
 from trifinger_simulation.tasks import move_cube
 from trifinger_simulation.trifinger_platform import TriFingerPlatform
 
@@ -9,9 +10,11 @@ CUBE_WIDTH = move_cube._CUBE_WIDTH
 MIN_HEIGHT = move_cube._min_height
 MAX_HEIGHT = move_cube._max_height
 ARENA_RADUIS = move_cube._ARENA_RADIUS
-INIT_JOINT_CONF = TriFingerPlatform.spaces.robot_position.default
+# INIT_JOINT_CONF = TriFingerPlatform.spaces.robot_position.default
+INIT_JOINT_CONF = np.array([0.0, 0.9, -2.0, 0.0, 0.9, -2.0, 0.0, 0.9, -2.0], dtype=np.float32)
 
 TMP_VIDEO_DIR = '/tmp/rrc_videos'
+CUSTOM_LOGDIR = '/output'  # only applicable when it is running on Singularity
 
 EXCEP_MSSG = "================= captured exception =================\n" + \
     "{message}\n" + "{error}\n" + '=================================='
