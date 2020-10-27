@@ -22,7 +22,7 @@ class Motion:
         # actions = self.tip_positions_to_actions([tip_positions])
         # print('actions', actions)
         # obs = self.run_actions(repeat(actions, 1000))
-        obs = self.run_actions(repeat([sols[0]], 1000))
+        obs = self.run_actions(repeat([sols[0]], 4000))
         return obs
 
     def sample_edge(self):
@@ -39,7 +39,7 @@ class Motion:
         return sols[0]
 
     def get_edge_motion(self):
-        resolution = 20
+        resolution = 40
         actions = []
         for i in range(resolution):
             theta = i / resolution * (2 * np.pi) / 3
