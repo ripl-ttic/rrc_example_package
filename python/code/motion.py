@@ -39,7 +39,7 @@ class Motion:
         return sols[0]
 
     def get_edge_motion(self):
-        resolution = 40
+        resolution = 20
         actions = []
         for i in range(resolution):
             self.vis_markers.remove()
@@ -48,7 +48,7 @@ class Motion:
 
             xs = ARENA_RADIUS * np.cos(thetas) * 0.9
             ys = ARENA_RADIUS * np.sin(thetas) * 0.9
-            zs = np.ones(xs.shape) * 0.04
+            zs = np.ones(xs.shape) * 0.06
             tip_positions = np.concatenate((xs, ys, zs)).reshape(3,3).T
             self.vis_markers.add(tip_positions, color=(1, 0, 0, 0.5))
             sols = self.ik_utils.sample_ik(tip_positions, sort_tips=True)
