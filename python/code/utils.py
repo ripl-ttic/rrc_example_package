@@ -531,6 +531,19 @@ class IKUtils:
                                                           target_tip_positions, num_samples=3)
             return solutions
 
+    def sample_ik(self, target_tip_positions, sort_tips=False):
+        from pybullet_planning.interfaces.kinematics.ik_utils import sample_multiple_ik_with_collision
+        def no_collision_fn(*args, **kwargs):
+            return False
+
+        with keep_state(self.env):
+            if sort_tips:
+                target_tip_positions, _ = self._assign_positions_to_fingers(target_tip_positions)
+            sample_fn = self._get_sample_fn()
+            solutions = sample_multiple_ik_with_collision(self.ik, no_collision_fn, sample_fn,
+                                                          target_tip_positions, num_samples=3)
+            return solutions
+
     def _get_collision_fn(self, slacky_collision):
         from pybullet_planning.interfaces.robots.collision import get_collision_fn
         return get_collision_fn(**self._get_collision_conf(slacky_collision))

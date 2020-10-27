@@ -83,10 +83,15 @@ class InitStayHoldWrapper(gym.Wrapper):
             else:
                 desired_position = INIT_JOINT_CONF
 
-            action = {
-                'position': desired_position,
-                'torque': self.env.initial_action['torque']
-            }
+            if self.env.action_type == ActionType.TORQUE_AND_POSITION:
+                action = {
+                    'position': desired_position,
+                    'torque': self.env.initial_action['torque']
+                }
+            elif self.env.action_type == ActionType.TORQUE:
+                action = self.env.initial_action['torque']
+            else:
+                action = desired_position
             obs, reward, done, info = self.env.step(action)
             counter += 1
 
