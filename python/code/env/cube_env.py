@@ -239,7 +239,6 @@ class RealRobotCubeEnv(gym.GoalEnv):
             is_done = is_done or self._termination_fn(observation)
 
         if is_done:
-            print('saving custom logs...')
             self.save_custom_logs()
 
         return observation, reward, is_done, self.info
@@ -376,6 +375,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
         self.custom_logs[name] = data
 
     def save_custom_logs(self):
+        print('saving custom logs...')
         if not os.path.isdir(CUSTOM_LOGDIR):
             print('{} does not exist. skip saving custom logs.'.format(CUSTOM_LOGDIR))
             return

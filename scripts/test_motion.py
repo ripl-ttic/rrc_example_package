@@ -33,6 +33,7 @@ def main():
     # motion.move_onto_floor()
     # motion.move_to_workspace_edge(5)
     motion.move_around_workspace_edge()
+    env.save_custom_logs()  # manually save the log
 
 if __name__ == '__main__':
     main()
