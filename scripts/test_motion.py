@@ -32,6 +32,8 @@ def main():
     obs = env.reset()
     env.register_custom_log('init_cube_pos', obs['object_position'])
     env.register_custom_log('init_cube_ori', obs['object_orientation'])
+    env.register_custom_log('goal_pos', obs['goal_object_position'])
+    env.register_custom_log('goal_ori', obs['goal_object_orientation'])
     motion = Motion(env)
     # motion.move_onto_floor()
     # motion.move_to_workspace_edge(5)
