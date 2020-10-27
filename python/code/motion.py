@@ -14,7 +14,8 @@ class Motion:
 
     def move_onto_floor(self):
         tip_positions = np.array([0.1, 0, 0.04, -0.1, 0, 0.04, 0, 0.1, 0.04]).reshape(3, 3)
-        self.vis_markers.add(tip_positions)
+        if self.env.visualization:
+            self.vis_markers.add(tip_positions)
 
         # sols = self.ik_utils.sample_no_collision_ik(tip_positions, sort_tips=True)
         sols = self.ik_utils.sample_ik(tip_positions, sort_tips=True)
@@ -27,13 +28,12 @@ class Motion:
     def sample_edge(self):
         sols = []
         while len(sols) == 0:
-            self.vis_markers.remove()
             thetas = np.random.random(3) * 2 * np.pi
             xs = ARENA_RADIUS * np.cos(thetas) * 0.9
             ys = ARENA_RADIUS * np.sin(thetas) * 0.9
             zs = np.ones(xs.shape) * 0.02
             tip_positions = np.concatenate((xs, ys, zs)).reshape(3,3).T
-            self.vis_markers.add(tip_positions, color=(1, 0, 0, 0.5))
+            self.maybe_add_markers(tip_positions, color=(1, 0, 0, 0.5))
             sols = self.ik_utils.sample_ik(tip_positions, sort_tips=True)
             import pdb; pdb.set_trace()
         return sols[0]
@@ -42,7 +42,6 @@ class Motion:
         resolution = 20
         actions = []
         for i in range(resolution):
-            self.vis_markers.remove()
             theta = i / resolution * (2 * np.pi) / 3
             thetas = np.array([theta, theta + (2 * np.pi) / 3, theta - (2 * np.pi) / 3])
 
@@ -50,7 +49,7 @@ class Motion:
             ys = ARENA_RADIUS * np.sin(thetas) * 0.9
             zs = np.ones(xs.shape) * 0.06
             tip_positions = np.concatenate((xs, ys, zs)).reshape(3,3).T
-            self.vis_markers.add(tip_positions, color=(1, 0, 0, 0.5))
+            self.maybe_add_markers(tip_positions, color=(1, 0, 0, 0.5))
             sols = self.ik_utils.sample_ik(tip_positions, sort_tips=True)
             if len(sols) > 0:
                 actions.append(sols[0])
@@ -90,6 +89,11 @@ class Motion:
             actions.append(action)
 
         return actions
+
+    def maybe_add_markers(self, tip_positions, color=None):
+        if self.env.visualization:
+            self.vis_markers.remove()
+            self.vis_markers.add(tip_positions, color=color)
 
     def run_actions(self, action_seq):
         for action in action_seq:
