@@ -27,8 +27,11 @@ def main():
     }
     env = make_training_env(goal_dict, difficulty, sim=False, visualization=False,
                             **eval_config)
+    env = env.env  # HACK to remove FlatObservationWrapper
 
     obs = env.reset()
+    env.register_custom_log('init_cube_pos', obs['object_position'])
+    env.register_custom_log('init_cube_ori', obs['object_orientation'])
     motion = Motion(env)
     # motion.move_onto_floor()
     # motion.move_to_workspace_edge(5)

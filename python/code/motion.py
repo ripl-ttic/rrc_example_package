@@ -39,7 +39,7 @@ class Motion:
         return sols[0]
 
     def get_edge_motion(self):
-        resolution = 40
+        resolution = 80
         actions = []
         for i in range(resolution):
             theta = i / resolution * (2 * np.pi) / 3
@@ -59,7 +59,7 @@ class Motion:
     def move_around_workspace_edge(self):
         actions = self.get_edge_motion()
         for action in actions:
-            obs = self.run_actions(repeat([action], 40))
+            obs = self.run_actions(repeat([action], 100))
         return obs
 
     def move_to_workspace_edge(self, num_times=5):
