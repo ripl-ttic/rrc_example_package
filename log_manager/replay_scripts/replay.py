@@ -13,6 +13,7 @@ import trifinger_object_tracking.py_tricamera_types as tricamera
 import trifinger_cameras
 from trifinger_cameras.utils import convert_image
 import cv2
+import json
 
 
 def load_data(path):
@@ -102,8 +103,16 @@ def get_synced_log_data(logdir):
     return obs
 
 
+def get_goal(logdir):
+    filename = os.path.join(logdir, 'goal.json')
+    with open(filename, 'r') as f:
+        goal = json.load(f)
+    return goal['goal']
+
+
 def main(logdir, video_path):
     custom_log = load_data(os.path.join(logdir, 'user/custom_data'))
+    goal = get_goal(logdir)
     data = get_synced_log_data(logdir)
     fps = len(data['t']) / (data['stamp'][-1] - data['stamp'][0])
     video_recorder = VideoRecorder(fps)
@@ -112,22 +121,14 @@ def main(logdir, video_path):
     initial_object_pose = move_cube.Pose(custom_log['init_cube_pos'],
                                          custom_log['init_cube_ori'])
     platform = trifinger_simulation.TriFingerPlatform(
-        visualization=True,
+        visualization=False,
         initial_object_pose=initial_object_pose,
     )
 
     visual_objects.CubeMarker(
         width=0.065,
-        position=custom_log["init_cube_pos"],
-        orientation=custom_log["init_cube_ori"],
-        color=(1, 0, 0, 0.4),
-        physicsClientId=platform.simfinger._pybullet_client_id,
-    )
-
-    visual_objects.CubeMarker(
-        width=0.065,
-        position=custom_log["goal_pos"],
-        orientation=custom_log["goal_ori"],
+        position=goal['position'],
+        orientation=goal['orientation'],
         physicsClientId=platform.simfinger._pybullet_client_id,
     )
 
@@ -148,7 +149,7 @@ def main(logdir, video_path):
                                          axis=1)
 
         frame = np.concatenate((frame_desired, frame_observed,
-                                frame_real_cube, frame_real), axis=0)
+                                frame_real, frame_real_cube), axis=0)
         video_recorder.add_frame(frame)
     video_recorder.save_video(video_path)
 
