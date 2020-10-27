@@ -486,6 +486,78 @@ class SubmissionRunner:
         with open(report_file, "w") as fh:
             json.dump(report, fh, indent=4)
 
+    def run_user_command(self, workspace_path, command):
+        """Run the user command."""
+        logging.info("Run the user command.")
+        logging.info("user command: {}".format(command))
+
+        # create user output directory if it does not yet exist
+        user_output_dir = os.path.join(self.config.host_output_dir, "user")
+        if not os.path.exists(user_output_dir):
+            os.mkdir(user_output_dir)
+
+        # binding full /dev as only binding /dev/shm does not work with --contain
+        exec_cmd = ''.join((
+            ". /setup.bash;",
+            ". /ws/devel/setup.bash;",
+            command
+        ))
+        run_user_cmd = [
+            self.config.singularity_binary,
+            "exec",
+            "--cleanenv",
+            "--contain",
+            "--nv",
+            "-B",
+            "{}:/ws,/dev,/run,{}:/output".format(workspace_path, user_output_dir),
+            self.config.singularity_user_image,
+            "bash",
+            "-c",
+            exec_cmd
+        ]
+
+        try:
+            # TODO make sure the user cannot spawn processes that keep running after the
+            # main one terminates (probably same method as for backend should be used).
+            # set DISPLAY env var
+            env = os.environ.copy()
+            env["SINGULARITYENV_DISPLAY"] = env["DISPLAY"]
+
+            proc = subprocess.run(
+                run_user_cmd,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env
+            )
+            logging.info("User code terminated.")
+            stdout = proc.stdout
+            stderr = proc.stderr
+            returncode = proc.returncode
+        except subprocess.CalledProcessError as e:
+            logging.error(
+                "User code exited with non-zero exist status: %d",
+                e.returncode,
+            )
+            stdout = e.stdout
+            stderr = e.stderr
+            returncode = e.returncode
+            # TODO: indicate this somehow to the user
+
+        # store output
+        stdout_file = os.path.join(
+            self.config.host_output_dir, "user_cmd_stdout.txt"
+        )
+        stderr_file = os.path.join(
+            self.config.host_output_dir, "user_cmd_stderr.txt"
+        )
+        with open(stdout_file, "wb") as fh:
+            fh.write(stdout)
+        with open(stderr_file, "wb") as fh:
+            fh.write(stderr)
+
+        return returncode
+
     def run(self):
         """Run the whole pipeline."""
         try:
