@@ -111,15 +111,14 @@ def get_goal(logdir):
 
 
 def main(logdir, video_path):
-    custom_log = load_data(os.path.join(logdir, 'user/custom_data'))
     goal = get_goal(logdir)
     data = get_synced_log_data(logdir)
     fps = len(data['t']) / (data['stamp'][-1] - data['stamp'][0])
     video_recorder = VideoRecorder(fps)
     cube_drawer = CubeDrawer(logdir)
 
-    initial_object_pose = move_cube.Pose(custom_log['init_cube_pos'],
-                                         custom_log['init_cube_ori'])
+    initial_object_pose = move_cube.Pose(data['cube'][0].position,
+                                         data['cube'][0].orientation)
     platform = trifinger_simulation.TriFingerPlatform(
         visualization=False,
         initial_object_pose=initial_object_pose,
