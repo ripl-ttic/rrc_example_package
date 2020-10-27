@@ -91,7 +91,7 @@ def main(logdir, video_path):
     print('last index', log.get_last_timeindex())
     first_time_index = log.get_first_timeindex()
     # last_time_index = log.get_last_timeindex()
-    last_time_index = first_time_index + 3000  # TEMP
+    last_time_index = first_time_index + 30000  # TEMP
     for t in range(first_time_index, last_time_index):
         # reduce frames per second
         if t % 10 != 0:
