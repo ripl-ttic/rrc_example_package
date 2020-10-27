@@ -9,7 +9,7 @@ VIRTUAL_CUBE_HALFWIDTH = 0.0395
 CUBE_WIDTH = move_cube._CUBE_WIDTH
 MIN_HEIGHT = move_cube._min_height
 MAX_HEIGHT = move_cube._max_height
-ARENA_RADUIS = move_cube._ARENA_RADIUS
+ARENA_RADIUS = move_cube._ARENA_RADIUS
 # INIT_JOINT_CONF = TriFingerPlatform.spaces.robot_position.default
 INIT_JOINT_CONF = np.array([0.0, 0.9, -2.0, 0.0, 0.9, -2.0, 0.0, 0.9, -2.0], dtype=np.float32)
 
