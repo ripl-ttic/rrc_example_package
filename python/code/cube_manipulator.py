@@ -263,6 +263,11 @@ class CubeManipulator:
         if cube_tip_pos is not None:
             from code.grasping import Transform
             from code.utils import IKUtils
+            if np.linalg.norm(obs['object_position'][:2]) > ARENA_RADIUS * 3/4:
+                safe_margin_coef = 1.3
+                if margin_coef >= safe_margin_coef:
+                    print('object is close to the edge. Overwriting margin_coef from {} to {}'.format(margin_coef, safe_margin_coef))
+                    margin_coef = safe_margin_coef
             m_cube_tip_pos = cube_tip_pos * margin_coef
 
             cube_pos = cube_pose[:3]
