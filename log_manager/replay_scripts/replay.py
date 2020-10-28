@@ -167,6 +167,7 @@ def main(logdir, video_path):
         visualization=True,
         initial_object_pose=initial_object_pose,
     )
+    markers = []
 
     visual_objects.CubeMarker(
         width=0.065,
@@ -175,18 +176,25 @@ def main(logdir, video_path):
         physicsClientId=platform.simfinger._pybullet_client_id,
     )
     if 'grasp_target_cube_pose' in custom_log:
-        visual_objects.CubeMarker(
-            width=0.065,
-            position=custom_log['grasp_target_cube_pose']['position'],
-            orientation=custom_log['grasp_target_cube_pose']['orientation'],
-            physicsClientId=platform.simfinger._pybullet_client_id,
+        markers.append(
+            visual_objects.CubeMarker(
+                width=0.065,
+                position=custom_log['grasp_target_cube_pose']['position'],
+                orientation=custom_log['grasp_target_cube_pose']['orientation'],
+                color=(0, 0, 1, 0.5),
+                physicsClientId=platform.simfinger._pybullet_client_id,
+            )
         )
     if 'pregrasp_tip_positions' in custom_log:
-        SphereMarker(
-            radius=0.015,
-            position=custom_log['pregrasp_tip_positions'],
-            color=(0, 0, 1, 0.5)
-        )
+        for tip_pos in custom_log['pregrasp_tip_positions']:
+            print(tip_pos)
+            markers.append(
+                SphereMarker(
+                    radius=0.015,
+                    position=tip_pos,
+                    color=(0, 1, 1, 0.5)
+                )
+            )
 
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
     p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=0, cameraPitch=-40, cameraTargetPosition=[0,0,0])

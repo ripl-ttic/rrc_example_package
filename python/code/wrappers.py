@@ -491,7 +491,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
             obs,
             cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
             cube_pose=self.planning_fc_policy.get_init_cube_pose(),
-            margin_coef=1.3,
+            margin_coef=1.5,
             n_trials=1)
         return obs
 

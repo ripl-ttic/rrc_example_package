@@ -263,17 +263,13 @@ class CubeManipulator:
         if cube_tip_pos is not None:
             from code.grasping import Transform
             from code.utils import IKUtils
-            # add some margin except its height (z-axis)
             m_cube_tip_pos = cube_tip_pos * margin_coef
-            m_cube_tip_pos[:, 2] = cube_tip_pos[:, 2]
-            print('cube_tip_pos', cube_tip_pos)
-            print('m_cube_tip_pos', m_cube_tip_pos)
 
             cube_pos = cube_pose[:3]
             cube_quat = p.getQuaternionFromEuler(cube_pose[3:])
-            m_tip_pos = Transform(cube_pos, cube_quat)(m_cube_tip_pos)
-
             tip_pos = Transform(cube_pos, cube_quat)(cube_tip_pos)
+            m_tip_pos = Transform(cube_pos, cube_quat)(m_cube_tip_pos)
+            m_tip_pos[:, 2] = tip_pos[:, 2]  # align height (z-axis)
             self.env.register_custom_log('pregrasp_tip_positions', m_tip_pos)
             self.env.save_custom_logs()
             if self.vis_markers is not None:
