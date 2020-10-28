@@ -485,20 +485,11 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         )
         return planning_fc_policy
 
-
     def _grasp_approach(self, obs):
-        from code.utils import repeat, ease_out
-        action_seq = self.cube_manipulator.get_grasp_approach_actions(
+        obs = self.cube_manipulator.grasp_approach(
             obs,
-            cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
-            cube_pose=self.planning_fc_policy.get_init_cube_pose(),
             margin_coef=2.0,
             n_trials=1)
-        self.env.register_custom_log('grasp_motion', action_seq)
-        # self.env.register_custom_log('grasp_tip_pos', self.planning_fc_policy.get_cube_tip_pos())  # FIXME: gett_cube_tip_pos returns tip positions on the "normal" aligned cube.
-
-        act_seq = ease_out(action_seq, in_rep=3 * 5, out_rep=8 * 5)
-        obs = self.cube_manipulator._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
     def _tighten_grasp(self, obs, grasp_force=0.8):
