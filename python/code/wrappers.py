@@ -393,6 +393,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
             self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
             self.env.register_custom_log('goal_pos', obs['goal_object_position'])
             self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
+            self.env.save_custom_logs()
             # This does planning inside
             self.planning_fc_policy = self._instantiate_planning_fc_policy(obs)
         except Exception as e:
@@ -490,7 +491,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
             obs,
             cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
             cube_pose=self.planning_fc_policy.get_init_cube_pose(),
-            margin_coef=2.0,
+            margin_coef=1.5,
             n_trials=1)
         return obs
 

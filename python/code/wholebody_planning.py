@@ -126,6 +126,9 @@ class WholeBodyPlanner:
         # reset joint conf
         self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
 
+        if cube_path is None:
+            raise RuntimeError('wholebody planning failed')
+
         one_pose = (len(np.shape(cube_path)) == 1)
         if one_pose: cube_path = [cube_path]
         tip_path = self._get_tip_path(cube_tip_positions, cube_path)

@@ -263,23 +263,22 @@ class CubeManipulator:
         if cube_tip_pos is not None:
             from code.grasping import Transform
             from code.utils import IKUtils
-            # add some margin except its height (z-axis)
             m_cube_tip_pos = cube_tip_pos * margin_coef
-            m_cube_tip_pos[:, 2] = cube_tip_pos[:, 2]
-            # print('cube_tip_pos', cube_tip_pos)
-            # print('m_cube_tip_pos', m_cube_tip_pos)
 
             cube_pos = cube_pose[:3]
             cube_quat = p.getQuaternionFromEuler(cube_pose[3:])
-            m_tip_pos = Transform(cube_pos, cube_quat)(m_cube_tip_pos)
-
             tip_pos = Transform(cube_pos, cube_quat)(cube_tip_pos)
+            m_tip_pos = Transform(cube_pos, cube_quat)(m_cube_tip_pos)
+            m_tip_pos[:, 2] = tip_pos[:, 2]  # align height (z-axis)
+            self.env.register_custom_log('pregrasp_tip_positions', m_tip_pos)
+            self.env.save_custom_logs()
             if self.vis_markers is not None:
                 self.vis_markers.remove()
                 self.vis_markers.add(tip_pos, color=TRANSLU_BLUE)
                 self.vis_markers.add(m_tip_pos, color=TRANSLU_RED)
 
             ik_utils = IKUtils(self.env)
+            print('m_tip_pos', m_tip_pos)
             jconfs = ik_utils.sample_no_collision_ik(m_tip_pos, sort_tips=False)
             self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
             if len(jconfs) == 0:
@@ -291,11 +290,11 @@ class CubeManipulator:
             inward_vector = cube_tip_pos * (1.0 - margin_coef)
             max_length_to_surface = max(np.linalg.norm(inward_vector, axis=1))
             num_keypoints = int(max_length_to_surface / unit_length)
-            # print('inward_vector', inward_vector)
-            # print('max_length_to_surface', max_length_to_surface)
-            # print('num_keypoints', num_keypoints)
-            # print('after cube_tip_pos', cube_tip_pos)
-            # print('after m_cube_tip_pos', m_cube_tip_pos)
+            print('inward_vector', inward_vector)
+            print('max_length_to_surface', max_length_to_surface)
+            print('num_keypoints', num_keypoints)
+            print('after cube_tip_pos', cube_tip_pos)
+            print('after m_cube_tip_pos', m_cube_tip_pos)
             for i in range(num_keypoints):
                 cube_tip_keypoint = m_cube_tip_pos + inward_vector * i / num_keypoints
                 tip_keypos = Transform(cube_pos, cube_quat)(cube_tip_keypoint)
