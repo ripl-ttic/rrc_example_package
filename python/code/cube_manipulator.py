@@ -283,6 +283,7 @@ class CubeManipulator:
                 self.vis_markers.add(m_tip_pos, color=TRANSLU_RED)
 
             ik_utils = IKUtils(self.env)
+            print('tip_pos', tip_pos)
             print('m_tip_pos', m_tip_pos)
             jconfs = ik_utils.sample_no_collision_ik(m_tip_pos, sort_tips=False)
             self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
@@ -292,20 +293,20 @@ class CubeManipulator:
             init_joint_conf = jconfs[0]
 
             unit_length = 0.008
-            inward_vector = cube_tip_pos * (1.0 - margin_coef)
+            inward_vector = tip_pos - m_tip_pos
             max_length_to_surface = max(np.linalg.norm(inward_vector, axis=1))
             num_keypoints = int(max_length_to_surface / unit_length)
+            print('margin_coef', margin_coef)
             print('inward_vector', inward_vector)
             print('max_length_to_surface', max_length_to_surface)
             print('num_keypoints', num_keypoints)
             print('after cube_tip_pos', cube_tip_pos)
             print('after m_cube_tip_pos', m_cube_tip_pos)
             for i in range(num_keypoints):
-                cube_tip_keypoint = m_cube_tip_pos + inward_vector * i / num_keypoints
-                tip_keypos = Transform(cube_pos, cube_quat)(cube_tip_keypoint)
+                tip_keypoint = m_tip_pos + inward_vector * i / num_keypoints
                 if self.vis_markers is not None:
-                    self.vis_markers.add(tip_keypos, color=TRANSLU_YELLOW)
-                jconfs = ik_utils.sample_ik(tip_keypos, sort_tips=False)
+                    self.vis_markers.add(tip_keypoint, color=TRANSLU_YELLOW)
+                jconfs = ik_utils.sample_ik(tip_keypoint, sort_tips=False)
                 # print(jconfs)
                 if len(jconfs) == 0:
                     print('warning: IK failed on grasp motion')
