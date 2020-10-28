@@ -30,7 +30,7 @@ def main(difficulty, goal_dict):
         'rank': 0,
         'episode_length': 20000
     }
-    env = make_training_env(goal_dict, difficulty, sim=True, visualization=True,
+    env = make_training_env(goal_dict, difficulty, sim=False, visualization=False,
                             **eval_config)
 
     obs = env.reset()
