@@ -181,7 +181,7 @@ class CubeManipulator:
 
     def grasp_approach(self, obs, avoid_top=False, in_rep=3 * 20, out_rep=8 * 20, **kwargs):
         from code.utils import repeat, ease_out
-        act_seq = self.get_grasp_approach_actions(obs, avoid_top=avoid_top, **kwargs)
+        act_seq = self.get_grasp_approach_actions(obs, margin_coef=2.0, avoid_top=avoid_top, **kwargs)
         act_seq = ease_out(act_seq, in_rep=in_rep, out_rep=out_rep)
         obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
         return obs
@@ -261,7 +261,10 @@ class CubeManipulator:
         if cube_tip_pos is not None:
             from code.grasping import Transform
             from code.utils import IKUtils
-            m_cube_tip_pos = cube_tip_pos * margin_coef  # add some margin
+            # add some margin except its height (z-axis)
+            m_cube_tip_pos = cube_tip_pos * margin_coef
+            m_cube_tip_pos[:, 2] = cube_tip_pos[:, 2]
+
             cube_pos = cube_pose[:3]
             cube_quat = p.getQuaternionFromEuler(cube_pose[3:])
             m_tip_pos = Transform(cube_pos, cube_quat)(m_cube_tip_pos)
