@@ -275,6 +275,7 @@ class CubeManipulator:
 
             tip_pos = Transform(cube_pos, cube_quat)(cube_tip_pos)
             self.env.register_custom_log('pregrasp_tip_positions', m_tip_pos)
+            self.env.save_custom_logs()
             if self.vis_markers is not None:
                 self.vis_markers.remove()
                 self.vis_markers.add(tip_pos, color=TRANSLU_BLUE)

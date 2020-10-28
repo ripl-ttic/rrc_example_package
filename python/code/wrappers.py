@@ -391,6 +391,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         try:
             self.env.register_custom_log('goal_pos', obs['goal_object_position'])
             self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
+            self.env.save_custom_logs()
             # This does planning inside
             self.planning_fc_policy = self._instantiate_planning_fc_policy(obs)
         except Exception as e:
