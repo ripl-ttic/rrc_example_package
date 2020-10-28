@@ -486,6 +486,8 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
     def _grasp_approach(self, obs):
         obs = self.cube_manipulator.grasp_approach(
             obs,
+            cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
+            cube_pose=self.planning_fc_policy.get_init_cube_pose(),
             margin_coef=2.0,
             n_trials=1)
         return obs

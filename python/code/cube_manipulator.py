@@ -257,8 +257,9 @@ class CubeManipulator:
         org_joint_vel = obs['robot_velocity']
         init_joint_conf = None
         # disabled_collisions = disable_tip_collisions(self.env)
+        assert margin_coef >= 1.0
 
-
+        grasp_action_seq = []
         if cube_tip_pos is not None:
             from code.grasping import Transform
             from code.utils import IKUtils
@@ -285,6 +286,21 @@ class CubeManipulator:
 
             init_joint_conf = jconfs[0]
 
+            unit_length = 0.008
+            inward_vector = cube_tip_pos * (1.0 - margin_coef)
+            max_length_to_surface = max(np.linalg.norm(inward_vector, axis=1))
+            num_keypoints = int(max_length_to_surface / unit_length)
+            # print('inward_vector', inward_vector)
+            # print('max_length_to_surface', max_length_to_surface)
+            # print('num_keypoints', num_keypoints)
+            for i in range(num_keypoints):
+                keypoint = m_cube_tip_pos + inward_vector * i / num_keypoints
+                jconfs = ik_utils.sample_ik(keypoint, sort_tips=False)
+                if len(jconfs) == 0:
+                    print('warning: IK failed on grasp motion')
+                    continue
+                grasp_action_seq.append(jconfs[0])
+
         for i in range(n_trials):
             if init_joint_conf is None:
                 sample_fc_grasp = GraspSampler(self.env, obs, mu=MU)
@@ -302,6 +318,10 @@ class CubeManipulator:
         if action_seq is None:
             self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
             raise ValueError('grasp_approach failed. No path to the grasp is found.')
+
+        # TRUE when cube_tip_pos is specified
+        if grasp_action_seq:
+            action_seq += grasp_action_seq  # Add grasp action sequece
 
         # show action sequence
         # print('VISUALIZING ACTION SEQUENCE...')
