@@ -266,6 +266,8 @@ class CubeManipulator:
             # add some margin except its height (z-axis)
             m_cube_tip_pos = cube_tip_pos * margin_coef
             m_cube_tip_pos[:, 2] = cube_tip_pos[:, 2]
+            # print('cube_tip_pos', cube_tip_pos)
+            # print('m_cube_tip_pos', m_cube_tip_pos)
 
             cube_pos = cube_pose[:3]
             cube_quat = p.getQuaternionFromEuler(cube_pose[3:])
@@ -292,9 +294,15 @@ class CubeManipulator:
             # print('inward_vector', inward_vector)
             # print('max_length_to_surface', max_length_to_surface)
             # print('num_keypoints', num_keypoints)
+            # print('after cube_tip_pos', cube_tip_pos)
+            # print('after m_cube_tip_pos', m_cube_tip_pos)
             for i in range(num_keypoints):
-                keypoint = m_cube_tip_pos + inward_vector * i / num_keypoints
-                jconfs = ik_utils.sample_ik(keypoint, sort_tips=False)
+                cube_tip_keypoint = m_cube_tip_pos + inward_vector * i / num_keypoints
+                tip_keypos = Transform(cube_pos, cube_quat)(cube_tip_keypoint)
+                if self.vis_markers is not None:
+                    self.vis_markers.add(tip_keypos, color=TRANSLU_YELLOW)
+                jconfs = ik_utils.sample_ik(tip_keypos, sort_tips=False)
+                # print(jconfs)
                 if len(jconfs) == 0:
                     print('warning: IK failed on grasp motion')
                     continue
@@ -320,6 +328,7 @@ class CubeManipulator:
 
         # TRUE when cube_tip_pos is specified
         if grasp_action_seq:
+            print('grasp action sequence is added')
             action_seq += grasp_action_seq  # Add grasp action sequece
 
         # show action sequence
