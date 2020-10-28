@@ -389,8 +389,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
 
         # wholebody motion planning
         try:
-            self.env.register_custom_log('init_cube_pos', obs['object_position'])
-            self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
             self.env.register_custom_log('goal_pos', obs['goal_object_position'])
             self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
             # This does planning inside

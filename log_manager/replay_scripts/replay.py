@@ -24,6 +24,49 @@ def load_data(path):
     return data
 
 
+class SphereMarker:
+    def __init__(self, radius, position, color=(0, 1, 0, 0.5)):
+        """
+        Create a sphere marker for visualization
+
+        Args:
+            width (float): Length of one side of the cube.
+            position: Position (x, y, z)
+            orientation: Orientation as quaternion (x, y, z, w)
+            color: Color of the cube as a tuple (r, b, g, q)
+            """
+        self.shape_id = p.createVisualShape(
+            shapeType=p.GEOM_SPHERE,
+            radius=radius,
+            rgbaColor=color,
+        )
+        self.body_id = p.createMultiBody(
+            baseVisualShapeIndex=self.shape_id,
+            basePosition=position,
+            baseOrientation=[0, 0, 0, 1],
+        )
+
+    def set_state(self, position):
+        """Set pose of the marker.
+
+        Args:
+            position: Position (x, y, z)
+        """
+        orientation = [0, 0, 0, 1]
+        p.resetBasePositionAndOrientation(
+            self.body_id, position, orientation
+        )
+
+    def __del__(self):
+        """
+        Removes the visual object from the environment
+        """
+        # At this point it may be that pybullet was already shut down. To avoid
+        # an error, only remove the object if the simulation is still running.
+        if p.isConnected():
+            p.removeBody(self.body_id)
+
+
 class CubeDrawer:
     def __init__(self, logdir):
         calib_files = []
@@ -88,7 +131,7 @@ def get_synced_log_data(logdir):
     obs = {'robot': [], 'cube': [], 'images': [], 't': [], 'desired_action': [],
            'stamp': []}
     ind = 0
-    for t in range(log.get_first_timeindex(), log.get_last_timeindex() + 1):
+    for t in range(log.get_first_timeindex(), log.get_first_timeindex() + 20000):
         if 1000 * log.get_timestamp_ms(t) >= stamps[ind]:
             robot_observation = log.get_robot_observation(t)
             camera_observation = log.get_camera_observation(t)
@@ -130,6 +173,17 @@ def main(logdir, video_path):
         position=goal['position'],
         orientation=goal['orientation'],
         physicsClientId=platform.simfinger._pybullet_client_id,
+    )
+    visual_objects.CubeMarker(
+        width=0.065,
+        position=custom_log['grasp_target_cube_pose']['position'],
+        orientation=custom_log['grasp_target_cube_pose']['orientation'],
+        physicsClientId=platform.simfinger._pybullet_client_id,
+    )
+    SphereMarker(
+        radius=0.015,
+        position=custom_log['pregrasp_tip_positions'],
+        color=(0, 0, 1, 0.5)
     )
 
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)

@@ -35,6 +35,11 @@ class PlanningAndForceControlPolicy:
             goal_ori = obs['object_orientation']
         aligned_obs = copy.deepcopy(obs)
         aligned_obs['object_position'][2] = CUBE_WIDTH / 2
+        env.register_custom_log('grasp_target_cube_pose',
+                                {
+                                    'position': aligned_obs['object_position'],
+                                    'orientation': aligned_obs['object_orientation']
+                                })
         path = self.planner.plan(aligned_obs, obs['goal_object_position'], goal_ori,
                                  retry_grasp=10, mu=constants.mu,
                                  cube_halfwidth=constants.halfwidth,
