@@ -30,7 +30,7 @@ def main():
     logdir = '/output'
     replay_file = '/output/comparison.avi'
     # command = 'rosrun rrc replay.py ' + custom_logfile + ' ' + replay_file
-    command = 'python3 /ws/src/usercode/log_manager/replay_scripts/replay_observed.py ' + logdir + ' ' + replay_file
+    command = 'python3 /ws/src/usercode/log_manager/replay_scripts/replay.py ' + logdir + ' ' + replay_file
     try:
         with tempfile.TemporaryDirectory(
             prefix="run_submission-"
