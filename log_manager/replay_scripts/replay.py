@@ -56,7 +56,7 @@ class VideoRecorder:
         self.frames = []
 
     def get_views(self):
-        images = [self.cameras.cameras[i].get_image() for i in range(3)]
+        images = [self.cameras.cameras[i].get_image(renderer=p.ER_TINY_RENDERER) for i in range(3)]
         three_views = np.concatenate((*images,), axis=1)
         return three_views
 
