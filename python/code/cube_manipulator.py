@@ -266,8 +266,8 @@ class CubeManipulator:
             # add some margin except its height (z-axis)
             m_cube_tip_pos = cube_tip_pos * margin_coef
             m_cube_tip_pos[:, 2] = cube_tip_pos[:, 2]
-            # print('cube_tip_pos', cube_tip_pos)
-            # print('m_cube_tip_pos', m_cube_tip_pos)
+            print('cube_tip_pos', cube_tip_pos)
+            print('m_cube_tip_pos', m_cube_tip_pos)
 
             cube_pos = cube_pose[:3]
             cube_quat = p.getQuaternionFromEuler(cube_pose[3:])
@@ -281,6 +281,7 @@ class CubeManipulator:
                 self.vis_markers.add(m_tip_pos, color=TRANSLU_RED)
 
             ik_utils = IKUtils(self.env)
+            print('m_tip_pos', m_tip_pos)
             jconfs = ik_utils.sample_no_collision_ik(m_tip_pos, sort_tips=False)
             self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
             if len(jconfs) == 0:
