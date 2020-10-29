@@ -239,6 +239,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
             is_done = is_done or self._termination_fn(observation)
 
         if is_done:
+            print('is_done is True. Episode terminates.')
             self.save_custom_logs()
 
         return observation, reward, is_done, self.info

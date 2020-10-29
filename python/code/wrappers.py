@@ -365,6 +365,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         return obs
 
     def reset(self):
+        print('reset is called')
         obs = self.env.reset()
         init_cube_manip = self._choose_init_cube_manip(obs)
 

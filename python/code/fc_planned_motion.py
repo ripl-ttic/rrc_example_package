@@ -40,6 +40,7 @@ class PlanningAndForceControlPolicy:
                                     'position': aligned_obs['object_position'],
                                     'orientation': aligned_obs['object_orientation']
                                 })
+        print('PlanningAndForceControlPolicy is instantiated')
         env.save_custom_logs()
         path = self.planner.plan(aligned_obs, obs['goal_object_position'], goal_ori,
                                  retry_grasp=10, mu=constants.mu,

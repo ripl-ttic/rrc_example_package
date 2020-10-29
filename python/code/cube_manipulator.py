@@ -298,6 +298,7 @@ class CubeManipulator:
             m_tip_pos = Transform(cube_pos, cube_quat)(m_cube_tip_pos)
             m_tip_pos[:, 2] = tip_pos[:, 2]  # align height (z-axis)
             self.env.register_custom_log('pregrasp_tip_positions', m_tip_pos)
+            print('saving pregrasp_tip_positions...')
             self.env.save_custom_logs()
             if self.vis_markers is not None:
                 self.vis_markers.remove()
