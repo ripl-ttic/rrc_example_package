@@ -30,7 +30,7 @@ class CubeManipulator:
     def move_to_target(self, obs, target_pos, target_ori, force_control=True, skip_planned_motions=False, avoid_top=False, flipping=False):
         # move to grasp pose
         print('approach to grasp pose...')
-        obs = self.grasp_approach(obs, avoid_top=avoid_top)
+        obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
 
         # tighten the grasp
         print('tightening the grasp...')
@@ -135,7 +135,7 @@ class CubeManipulator:
                 cube_tip_positions, cube_pose = self.calc_yaw_tip_positions(obs)
                 in_rep = 3 if self.env.simulation else 3 * 4
                 out_rep = 8 if self.env.simulation else 8 * 4
-                obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=in_rep, out_rep=out_rep, margin_coef=1.5, flipping=False)
+                obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=in_rep, out_rep=out_rep, margin_coef=1.5)
             else:
                 assert(cube_tip_positions is not None and pitch_axis is not None and pitch_angle is not None)
                 obs, cube_tip_positions, suc = self.reach_tip_positions(obs, cube_tip_positions)
@@ -252,7 +252,7 @@ class CubeManipulator:
             cube_id = self.env.platform.cube.block
 
             for i in range(30):
-                planned_motion = plan_joint_motion(**self._get_grasp_conf(target_joint_angles, flipping=True))
+                planned_motion = plan_joint_motion(**self._get_grasp_conf(target_joint_angles, config_type='flipping'))
                 #reset the robot position that pybullet-planning changed
                 self.env.platform.simfinger.reset_finger_positions_and_velocities(obs['robot_position'], obs['robot_velocity'])
                 if planned_motion is not None:
@@ -266,7 +266,7 @@ class CubeManipulator:
 
     def get_grasp_approach_actions(self, obs, cube_tip_pos=None, cube_pose=None,
                                    margin_coef=1.3, n_trials=100, avoid_top=False,
-                                   flipping=False, **kwargs):
+                                   config_type=None, **kwargs):
         '''return grasp action sequence'''
 
         from code.wholebody_planning import disable_tip_collisions
@@ -355,7 +355,7 @@ class CubeManipulator:
                                                    shrink_region=0.2)
             else:
                 joint_conf = init_joint_conf
-            action_seq = plan_joint_motion(**self._get_grasp_conf(joint_conf, flipping=flipping))
+            action_seq = plan_joint_motion(**self._get_grasp_conf(joint_conf, config_type=config_type))
 
             if action_seq is not None:
                 break
@@ -379,39 +379,47 @@ class CubeManipulator:
         self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
         return action_seq
 
-    def _get_grasp_conf(self, joint_conf, flipping):
+    def _get_grasp_conf(self, joint_conf, config_type=None):
         MaxDist = namedtuple('MaxDist', ['dist', 'body_link_pairs'])
         cube_id = self.env.platform.cube.block
         workspace_id = 0
-        if flipping:
+        default_config = {
+            'body': self.env.platform.simfinger.finger_id,
+            'joints': self.env.platform.simfinger.pybullet_link_indices,
+            'end_conf': joint_conf,
+            'obstacles': [cube_id, 0],
+            'self_collisions': True,
+            'ignore_collision_steps': 6,
+            'iterations': 2000,
+            'max_distance': -COLLISION_TOLERANCE,
+            'max_dist_on': [
+                MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
+                MaxDist(dist=0.02, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
+            ],
+            'diagnosis': False,
+            'smooth': 1200,
+            'resolutions': 0.01
+        }
+        if config_type is None:
+            config = default_config
+        elif config_type == 'move_to_target':
+            config = default_config
+            config['max_dist_on'] = [
+                MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
+                MaxDist(dist=0.015, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
+            ]
+        elif config_type == 'flipping':
             config = {
                 'body': self.env.platform.simfinger.finger_id,
                 'joints': self.env.platform.simfinger.pybullet_link_indices,
                 'end_conf': joint_conf,
                 'self_collisions':True,
+                'ignore_collision_steps': 6,
                 'iterations': 2000,
                 'obstacles': [cube_id, 0],
                 'max_distance': 0.01,
                 'diagnosis': False,
                 'smooth': 1200
-            }
-        else:
-            config = {
-                'body': self.env.platform.simfinger.finger_id,
-                'joints': self.env.platform.simfinger.pybullet_link_indices,
-                'end_conf': joint_conf,
-                'obstacles': [cube_id, 0],
-                'self_collisions': True,
-                'ignore_collision_steps': 6,
-                'iterations': 2000,
-                'max_distance': -COLLISION_TOLERANCE,
-                'max_dist_on': [
-                    MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
-                    MaxDist(dist=0.015, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
-                ],
-                'diagnosis': False,
-                'smooth':1200,
-                'resolutions': 0.01
             }
         return config
 
@@ -431,7 +439,7 @@ class CubeManipulator:
 
         if dist > 0.1:
             #waypoint
-            position = obs['object_position']
+            position = np.copy(obs['object_position'])
             position[0] = (position[0] + target_pos[0]) /2
             position[1] = (position[1] + target_pos[1]) /2
             target_tip_positions = apply_transform(position,
@@ -440,7 +448,7 @@ class CubeManipulator:
             tip_positions_list.append(target_tip_positions)
 
         #move
-        position = obs['object_position']
+        position = np.copy(obs['object_position'])
         position[0] = target_pos[0]
         position[1] = target_pos[1]
         target_tip_positions = apply_transform(position,
