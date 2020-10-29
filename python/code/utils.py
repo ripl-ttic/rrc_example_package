@@ -644,3 +644,19 @@ class AssertNoStateChanges:
         joint_vel = get_joint_velocities(self.finger_id, self.finger_links)
         np.testing.assert_array_almost_equal(self.org_joint_pos, joint_pos)
         np.testing.assert_array_almost_equal(self.org_joint_vel, joint_vel)
+
+
+def complete_keypoints(ik_utils, start, goal, unit_length=0.008, vis_markers=None):
+    from code.const import TRANSLU_YELLOW
+    assert start.shape == goal.shape
+    assert len(start.shape) in [1, 2]
+    joint_conf_sequence = []
+    diff = goal - start
+    if len(start.shape) == 2:
+        length = max(np.linalg.norm(diff, axis=1))
+    else:
+        length = np.linalg.norm(diff)
+
+    num_keypoints = int(length / unit_length)
+    keypoints = [start + diff * i / num_keypoints for i in range(num_keypoints)]
+    return keypoints
