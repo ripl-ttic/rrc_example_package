@@ -167,6 +167,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         self.pinocchio_utils = PinocchioUtils()
         self.prev_observation = None
+        self._prev_step_report = 0
 
     def step(self, action):
         """Run one timestep of the environment's dynamics.
@@ -238,8 +239,16 @@ class RealRobotCubeEnv(gym.GoalEnv):
         if self._termination_fn is not None:
             is_done = is_done or self._termination_fn(observation)
 
+        # report current step_count
+        if self.step_count - self._prev_step_report > 1000:
+            print('current step_count:', self.step_count)
+            self._prev_step_report = self.step_count
+
         if is_done:
             print('saving custom logs...')
+            print('is_done is True. Episode terminates.')
+            print('episode length', self.episode_length)
+            print('step_count', self.step_count)
             self.save_custom_logs()
 
         return observation, reward, is_done, self.info
