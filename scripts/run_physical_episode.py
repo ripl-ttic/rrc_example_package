@@ -42,7 +42,8 @@ def make_pure_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1,
 
 def main(difficulty, goal_dict):
     if difficulty is None and goal_dict is None:
-        goal = move_cube.sample_goal(3)
+        difficulty = 4
+        goal = move_cube.sample_goal(difficulty)
         goal_dict = {
             'position': goal.position,
             'orientation': goal.orientation
@@ -50,7 +51,6 @@ def main(difficulty, goal_dict):
     print('difficulty:', difficulty)
     print('goal_dict:', goal_dict)
 
-    difficulty = 3  # TEMP
     eval_config = {
         'action_space': 'torque_and_position',
         'frameskip': 3,
