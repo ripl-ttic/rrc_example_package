@@ -65,7 +65,7 @@ class CubeManipulator:
         if not cube_centered(obs):
             obs = self.move_to_center(obs, force_control=False)
             # obs = self.holds_until_everything_stops(obs)
-            num_steps = 100 if self.env.simulation else 1000
+            num_steps = 10 if self.env.simulation else 100
             obs = self.wait_for(obs, num_steps=num_steps)
 
         #stop when cube is already aligned
@@ -76,13 +76,13 @@ class CubeManipulator:
 
         obs, cube_tip_positions = self.align_pitch(obs)
         # obs = self.holds_until_everything_stops(obs)
-        num_steps = 100 if self.env.simulation else 1000
+        num_steps = 10 if self.env.simulation else 100
         obs = self.wait_for(obs, num_steps=num_steps)
 
         if yaw_planning:
             obs = self.align_yaw(obs, planning=yaw_planning)
             # obs = self.holds_until_everything_stops(obs)
-            num_steps = 100 if self.env.simulation else 1000
+            num_steps = 10 if self.env.simulation else 100
             obs = self.wait_for(obs, num_steps=num_steps)
         else:
             projected_goal_orientation = project_cube_xy_plane(obs['goal_object_orientation'])
@@ -93,8 +93,6 @@ class CubeManipulator:
                                  pitch_axis=pitch_axis,
                                  pitch_angle=pitch_angle)
             # obs = self.holds_until_everything_stops(obs)
-            num_steps = 100 if self.env.simulation else 1000
-            obs = self.wait_for(obs, num_steps=num_steps)
 
         step_end = self.env.unwrapped.step_count
         print("total steps for aligning: {}".format(step_end - step_start))
@@ -146,7 +144,7 @@ class CubeManipulator:
 
             print("yawing cube...")
             #self._run_planned_actions(obs, path.joint_conf, ActionType.POSITION)
-            num_repeat = 4 if self.env.simulation else 4 * 10
+            num_repeat = 2 if self.env.simulation else 2 * 4
             obs, angle = self.yawing_cube(obs, cube_tip_positions, step_angle=step_yaw_angle, num_repeat=num_repeat)
             # obs = self.holds_until_everything_stops(obs)
             num_steps = 10 if self.env.simulation else 100
@@ -190,9 +188,11 @@ class CubeManipulator:
             return obs, cube_tip_positions, suc
         else:
             suc = True
-        in_rep = 3 if self.env.simulation else 3 * 10
-        out_rep = 6 if self.env.simulation else 6 * 10
+        in_rep = 3 if self.env.simulation else 3 * 4
+        out_rep = 6 if self.env.simulation else 6 * 4
         act_seq = ease_out(act_seq, in_rep=in_rep, out_rep=out_rep)
+        num_repeat = 40 if self.env.simulation else 400
+        act_seq += repeat([act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
         obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION)
         return obs, cube_tip_positions, suc
 
