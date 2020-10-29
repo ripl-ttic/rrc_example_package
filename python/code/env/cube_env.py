@@ -240,6 +240,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         if is_done:
             print('is_done is True. Episode terminates.')
+            print('episode length', self.episode_length)
+            print('step_count', self.step_count)
             self.save_custom_logs()
 
         return observation, reward, is_done, self.info

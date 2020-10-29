@@ -60,7 +60,7 @@ def main(difficulty, goal_dict):
         'initializer': f'task{difficulty}_init',
         'monitor': False,
         'rank': 0,
-        'episode_length': 20000
+        'episode_length': 100000
     }
     env = make_training_env(goal_dict, difficulty, sim=False, visualization=False,
                             **eval_config)
