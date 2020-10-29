@@ -51,7 +51,8 @@ class CubeManipulator:
         else:
             #rotating not implemented yet
             print('moving to the goal...')
-            obs = self.moving_cube(obs, target_pos, num_repeat=40)
+            num_repeat = 40 if self.env.simulation else 40 * 10
+            obs = self.moving_cube(obs, target_pos, num_repeat=num_repeat)
 
         return obs
 
@@ -63,7 +64,9 @@ class CubeManipulator:
         #centering cube
         if not cube_centered(obs):
             obs = self.move_to_center(obs, force_control=False)
-            obs = self.holds_until_everything_stops(obs)
+            # obs = self.holds_until_everything_stops(obs)
+            num_steps = 100 if self.env.simulation else 1000
+            obs = self.wait_for(obs, num_steps=num_steps)
 
         #stop when cube is already aligned
         if cube_rotation_aligned(obs):
@@ -72,11 +75,15 @@ class CubeManipulator:
 
 
         obs, cube_tip_positions = self.align_pitch(obs)
-        obs = self.holds_until_everything_stops(obs)
+        # obs = self.holds_until_everything_stops(obs)
+        num_steps = 100 if self.env.simulation else 1000
+        obs = self.wait_for(obs, num_steps=num_steps)
 
         if yaw_planning:
             obs = self.align_yaw(obs, planning=yaw_planning)
-            obs = self.holds_until_everything_stops(obs)
+            # obs = self.holds_until_everything_stops(obs)
+            num_steps = 100 if self.env.simulation else 1000
+            obs = self.wait_for(obs, num_steps=num_steps)
         else:
             projected_goal_orientation = project_cube_xy_plane(obs['goal_object_orientation'])
             z_aligned_goal_orientation, pitch_axis, pitch_angle = align_z(obs['object_orientation'], projected_goal_orientation)
@@ -85,7 +92,9 @@ class CubeManipulator:
                                  cube_tip_positions=cube_tip_positions,
                                  pitch_axis=pitch_axis,
                                  pitch_angle=pitch_angle)
-            obs = self.holds_until_everything_stops(obs)
+            # obs = self.holds_until_everything_stops(obs)
+            num_steps = 100 if self.env.simulation else 1000
+            obs = self.wait_for(obs, num_steps=num_steps)
 
         step_end = self.env.unwrapped.step_count
         print("total steps for aligning: {}".format(step_end - step_start))
@@ -106,7 +115,8 @@ class CubeManipulator:
             if not suc:
                 break #stop before mess up environment
             print("pitching cube...")
-            obs = self.pitching_cube(obs, cube_tip_positions, num_repeat=20, final_pitch=(i == pitch_times - 1))
+            num_repeat = 20 if self.env.simulation else 20 * 10
+            obs = self.pitching_cube(obs, cube_tip_positions, num_repeat=num_repeat, final_pitch=(i == pitch_times - 1))
 
             rotated_axis = pitch_axis
             rotated_angle = np.sign(pitch_angle) * np.pi /2
@@ -125,7 +135,9 @@ class CubeManipulator:
             print("reaching grasp position...")
             if planning:
                 cube_tip_positions, cube_pose = self.calc_yaw_tip_positions(obs)
-                obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=3, out_rep=8, margin_coef=1.5, flipping=False)
+                in_rep = 3 if self.env.simulation else 3 * 10
+                out_rep = 8 if self.env.simulation else 8 * 10
+                obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=in_rep, out_rep=out_rep, margin_coef=1.5, flipping=False)
             else:
                 assert(cube_tip_positions is not None and pitch_axis is not None and pitch_angle is not None)
                 obs, cube_tip_positions, suc = self.reach_tip_positions(obs, cube_tip_positions)
@@ -134,8 +146,11 @@ class CubeManipulator:
 
             print("yawing cube...")
             #self._run_planned_actions(obs, path.joint_conf, ActionType.POSITION)
-            obs, angle = self.yawing_cube(obs, cube_tip_positions, step_angle=step_yaw_angle,num_repeat=20)
-            obs = self.holds_until_everything_stops(obs)
+            num_repeat = 20 if self.env.simulation else 20 * 10
+            obs, angle = self.yawing_cube(obs, cube_tip_positions, step_angle=step_yaw_angle, num_repeat=num_repeat)
+            # obs = self.holds_until_everything_stops(obs)
+            num_steps = 100 if self.env.simulation else 1000
+            obs = self.wait_for(obs, num_steps=num_steps)
 
             if planning:
                 pass
@@ -175,15 +190,22 @@ class CubeManipulator:
             return obs, cube_tip_positions, suc
         else:
             suc = True
-        act_seq = ease_out(act_seq, in_rep=3 * 20, out_rep=6 * 20)
+        in_rep = 3 if self.env.simulation else 3 * 10
+        out_rep = 6 if self.env.simulation else 6 * 10
+        act_seq = ease_out(act_seq, in_rep=in_rep, out_rep=out_rep)
         obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION)
         return obs, cube_tip_positions, suc
 
-    def grasp_approach(self, obs, avoid_top=False, in_rep=3 * 10, out_rep=8 * 10, **kwargs):
+    def grasp_approach(self, obs, avoid_top=False, in_rep=None, out_rep=None, **kwargs):
         from code.utils import repeat, ease_out
+        if in_rep is None:
+            in_rep = 3 if self.env.simulation else 3 * 10
+        if out_rep is None:
+            out_rep = 8 if self.env.simulation else 8 * 10
         act_seq = self.get_grasp_approach_actions(obs, avoid_top=avoid_top, **kwargs)
         act_seq = ease_out(act_seq, in_rep=in_rep, out_rep=out_rep)
-        act_seq += repeat([act_seq[-1]], num_repeat=400)  # Pause at the final pre-grasp pose
+        num_repeat = 40 if self.env.simulation else 400
+        act_seq += repeat([act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
         obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
@@ -538,6 +560,17 @@ class CubeManipulator:
                     step += 1
                     self._maybe_update_markers(obs)
                     self._maybe_wait()
+        return obs
+
+    def wait_for(self, obs, num_steps=1000):
+        step = 0
+        done = False
+        init_joint_conf = obs['robot_position']
+        with frameskip_to(1, self.env):
+            with action_type_to(ActionType.POSITION, self.env):
+                while not done and step <= num_steps:
+                    obs, _, _, _ = self.env.step(init_joint_conf)
+                    step += 1
         return obs
 
     def _move_joints_toward_home(self, obs, steps=10):
