@@ -240,7 +240,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
             is_done = is_done or self._termination_fn(observation)
 
         # report current step_count
-        if self.step_count - self._prev_step_report > 1000:
+        if self.step_count - self._prev_step_report > 200:
             print('current step_count:', self.step_count)
             self._prev_step_report = self.step_count
 
