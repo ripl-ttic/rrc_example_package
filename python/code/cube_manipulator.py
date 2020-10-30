@@ -316,7 +316,7 @@ class CubeManipulator:
             init_joint_conf = jconfs[0]
 
             from code.utils import complete_keypoints
-            keypoints = complete_keypoints(ik_utils, start=m_tip_pos, goal=tip_pos, vis_markers=self.vis_markers)
+            keypoints = complete_keypoints(ik_utils, start=m_tip_pos, goal=tip_pos)
             for keypoint in keypoints:
                 if self.vis_markers is not None:
                     self.vis_markers.add(keypoint, color=TRANSLU_YELLOW)
@@ -484,12 +484,12 @@ class CubeManipulator:
         '''assume cube_tip_positions are on the centers of three faces'''
 
         from code.action_sequences import ScriptedActions
-        action_sequence = ScriptedActions(self.env, cube_tip_positions)
+        action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
 
-        action_sequence.add_grasp(obs, coef=0.6, vis_markers=self.vis_markers)
+        action_sequence.add_grasp(obs, coef=0.6)
         action_sequence.add_liftup(obs, coef=0.6)
         rotate_axis, rotate_angle = pitch_rotation_axis_and_angle(cube_tip_positions)
-        action_sequence.add_pitch_rotation(obs, rotate_axis, rotate_angle, coef=0.6, vis_markers=self.vis_markers)
+        action_sequence.add_pitch_rotation(obs, rotate_axis, rotate_angle, coef=0.6)
         action_sequence.add_place_cube(obs, coef=0.6)
 
         if final_pitch:
@@ -513,7 +513,7 @@ class CubeManipulator:
                     apply_yaw_rotation = False
 
             if apply_yaw_rotation:
-                action_sequence.add_yaw_rotation(dummy_obs, vis_markers=self.vis_markers)
+                action_sequence.add_yaw_rotation(dummy_obs)
 
         action_sequence.add_release(obs)
         return self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs)
@@ -522,10 +522,10 @@ class CubeManipulator:
         '''return list of actions that achieve grasp -> yaw -> release'''
 
         from code.action_sequences import ScriptedActions
-        action_sequence = ScriptedActions(self.env, cube_tip_positions)
+        action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
 
-        action_sequence.add_grasp(obs, vis_markers=self.vis_markers)
-        angle_clipped = action_sequence.add_yaw_rotation(obs, step_angle=step_angle, vis_markers=self.vis_markers)
+        action_sequence.add_grasp(obs)
+        angle_clipped = action_sequence.add_yaw_rotation(obs, step_angle=step_angle)
         action_sequence.add_release(obs)
         return self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs), angle_clipped
 
