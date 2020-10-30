@@ -398,7 +398,6 @@ class CubeManipulator:
             ],
             'diagnosis': False,
             'smooth': 1200,
-            'resolutions': 0.01
         }
         if config_type is None:
             config = default_config
@@ -420,6 +419,23 @@ class CubeManipulator:
                 'max_distance': 0.01,
                 'diagnosis': False,
                 'smooth': 1200
+            }
+        else:
+            config = {
+                'body': self.env.platform.simfinger.finger_id,
+                'joints': self.env.platform.simfinger.pybullet_link_indices,
+                'end_conf': joint_conf,
+                'obstacles': [cube_id, 0],
+                'self_collisions': True,
+                'ignore_collision_steps': 6,
+                'iterations': 2000,
+                'max_distance': -COLLISION_TOLERANCE,
+                'max_dist_on': [
+                    MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
+                    MaxDist(dist=0.015, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
+                ],
+                'diagnosis': False,
+                'smooth':1200
             }
         return config
 
