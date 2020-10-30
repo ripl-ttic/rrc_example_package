@@ -311,6 +311,10 @@ class CubeManipulator:
             jconfs = ik_utils.sample_no_collision_ik(m_tip_pos, sort_tips=False)
             self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
             if len(jconfs) == 0:
+                print('The given tip position is not feasible')
+                print('saving failure_target_tip_positions')
+                self.env.register_custom_log('failure_target_tip_positions', m_tip_pos)
+                self.env.save_custom_logs()
                 raise ValueError('The given tip position is not feasible')
 
             init_joint_conf = jconfs[0]
@@ -351,7 +355,7 @@ class CubeManipulator:
             if init_joint_conf is None:
                 sample_fc_grasp = GraspSampler(self.env, obs, mu=MU)
                 print('init_joint_conf is None --> sampling grasp points ad hoc...')
-                _, _, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
+                _, tip_pos, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
                                                    shrink_region=0.2)
             else:
                 joint_conf = init_joint_conf
@@ -363,6 +367,11 @@ class CubeManipulator:
                 print('grasp approach sequence is None. Retrying...')
         if action_seq is None:
             self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
+            print('grasp_approach failed. No path to the grasp is found.')
+            print('saving failure_target_tip_positions')
+            target_tip_pos = tip_pos if init_joint_conf is None else m_tip_pos
+            self.env.register_custom_log('failure_target_tip_positions', target_tip_pos)
+            self.env.save_custom_logs()
             raise ValueError('grasp_approach failed. No path to the grasp is found.')
 
         # TRUE when cube_tip_pos is specified
