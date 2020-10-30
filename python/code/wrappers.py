@@ -61,11 +61,13 @@ class InitStayHoldWrapper(gym.Wrapper):
     And that causes annoying issues.
     This wrapper forces to apply env.initial_action for the first "hold_steps" steps to properly reset the robot pose.
     '''
-    def __init__(self, env, hold_steps=400):
+    def __init__(self, env, hold_steps=300):
         super().__init__(env)
         self.hold_steps = hold_steps
+        self.env = env
 
     def reset(self):
+        from code.utils import action_type_to
         obs = self.env.reset()
 
         # step environment for "hold_steps" steps
@@ -83,16 +85,8 @@ class InitStayHoldWrapper(gym.Wrapper):
             else:
                 desired_position = INIT_JOINT_CONF
 
-            if self.env.action_type == ActionType.TORQUE_AND_POSITION:
-                action = {
-                    'position': desired_position,
-                    'torque': self.env.initial_action['torque']
-                }
-            elif self.env.action_type == ActionType.TORQUE:
-                action = self.env.initial_action['torque']
-            else:
-                action = desired_position
-            obs, reward, done, info = self.env.step(action)
+            with action_type_to(ActionType.POSITION, self.env):
+                obs, reward, done, info = self.env.step(desired_position)
             counter += 1
 
         return obs

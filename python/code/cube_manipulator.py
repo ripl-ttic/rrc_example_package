@@ -181,6 +181,7 @@ class CubeManipulator:
 
     def reach_tip_positions(self, obs, cube_tip_positions):
         from code.utils import repeat, ease_out
+        from code import utils
         act_seq, cube_tip_positions = self.motion_planning(cube_tip_positions, obs)
         suc = False
         if act_seq is None:
@@ -296,7 +297,7 @@ class CubeManipulator:
         if cube_tip_pos is not None:
             from code.grasping import Transform
             from code.utils import IKUtils
-            if np.linalg.norm(obs['object_position'][:2]) > ARENA_RADIUS * 3/4:
+            if np.linalg.norm(obs['object_position'][:2]) > ARENA_RADIUS * 2/3:
                 safe_margin_coef = 1.3
                 if margin_coef >= safe_margin_coef:
                     print('object is close to the edge. Overwriting margin_coef from {} to {}'.format(margin_coef, safe_margin_coef))
