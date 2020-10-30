@@ -10,7 +10,7 @@ from code.env.cube_env import ActionType
 
 def main(difficulty, goal_dict):
     if difficulty is None and goal_dict is None:
-        difficulty = 4
+        difficulty = 3
         goal = move_cube.sample_goal(difficulty)
         goal_dict = {
             'position': goal.position,
@@ -20,7 +20,7 @@ def main(difficulty, goal_dict):
     print('goal_dict:', goal_dict)
 
     eval_config = {
-        'action_space': 'torque_and_position',
+        'action_space': 'torque',
         'frameskip': 3,
         'residual': True,
         'reward_fn': f'task{difficulty}_competition_reward',
