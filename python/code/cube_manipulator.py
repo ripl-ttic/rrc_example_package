@@ -188,25 +188,36 @@ class CubeManipulator:
             return obs, cube_tip_positions, suc
         else:
             suc = True
+
+        finer_act_seq = []
+        for i in range(len(act_seq) - 1):
+            finer_act_seq += utils.complete_joint_configs(start=act_seq[i], goal=act_seq[i+1])
+
         in_rep = 3 if self.env.simulation else 3 * 4
         out_rep = 6 if self.env.simulation else 6 * 4
-        act_seq = ease_out(act_seq, in_rep=in_rep, out_rep=out_rep)
+        finer_act_seq = ease_out(finer_act_seq, in_rep=in_rep, out_rep=out_rep)
         num_repeat = 40 if self.env.simulation else 400
-        act_seq += repeat([act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
-        obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION)
+        finer_act_seq += repeat([finer_act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
+        obs = self._run_planned_actions(obs, finer_act_seq, ActionType.POSITION)
         return obs, cube_tip_positions, suc
 
     def grasp_approach(self, obs, avoid_top=False, in_rep=None, out_rep=None, **kwargs):
         from code.utils import repeat, ease_out
+        from code import utils
         if in_rep is None:
             in_rep = 3 if self.env.simulation else 3 * 4
         if out_rep is None:
             out_rep = 8 if self.env.simulation else 8 * 4
         act_seq = self.get_grasp_approach_actions(obs, avoid_top=avoid_top, **kwargs)
-        act_seq = ease_out(act_seq, in_rep=in_rep, out_rep=out_rep)
+
+        finer_act_seq = []
+        for i in range(len(act_seq) - 1):
+            finer_act_seq += utils.complete_joint_configs(start=act_seq[i], goal=act_seq[i+1])
+
+        finer_act_seq = ease_out(finer_act_seq, in_rep=in_rep, out_rep=out_rep)
         num_repeat = 40 if self.env.simulation else 400
-        act_seq += repeat([act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
-        obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
+        finer_act_seq += repeat([finer_act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
+        obs = self._run_planned_actions(obs, finer_act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
     def pitching_cube(self, obs, cube_tip_positions, num_repeat=30, final_pitch=False):

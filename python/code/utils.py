@@ -650,7 +650,6 @@ def complete_keypoints(ik_utils, start, goal, unit_length=0.008):
     from code.const import TRANSLU_YELLOW
     assert start.shape == goal.shape
     assert len(start.shape) in [1, 2]
-    joint_conf_sequence = []
     diff = goal - start
     if len(start.shape) == 2:
         length = max(np.linalg.norm(diff, axis=1))
@@ -660,3 +659,15 @@ def complete_keypoints(ik_utils, start, goal, unit_length=0.008):
     num_keypoints = int(length / unit_length)
     keypoints = [start + diff * i / num_keypoints for i in range(num_keypoints)]
     return keypoints
+
+
+def complete_joint_configs(start, goal, unit_rad=0.008):
+    start = np.asarray(start)
+    goal = np.asarray(goal)
+    assert start.shape == goal.shape == (9, )
+
+    max_diff = max(goal - start)
+
+    num_keypoints = int(max_diff / unit_rad)
+    joint_configs = [start + (goal - start) * i / num_keypoints for i in range(num_keypoints)]
+    return joint_configs
