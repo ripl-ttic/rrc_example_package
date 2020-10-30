@@ -147,7 +147,7 @@ class ResidualLearningFCWrapper(gym.Wrapper):
                 "torque_action": spaces.robot_torque.gym,
             }
         )
-        self.observation_names.append("torque_action")
+        # self.observation_names.append("torque_action")
         from code.fc_force_control import ForceControlPolicy
         self.pi = ForceControlPolicy(self.env, apply_torques=apply_torques)
         self.cube_manipulator = CubeManipulator(env)
@@ -224,7 +224,7 @@ class ResidualLearningFCWrapper(gym.Wrapper):
     def _grasp_approach(self, obs):
         obs = self.cube_manipulator.grasp_approach(
             obs,
-            margin_coef=1.3,
+            margin_coef=2.0,
             n_trials=1)
         return obs
 
@@ -361,6 +361,11 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
     def reset(self):
         print('reset is called')
         obs = self.env.reset()
+        self.env.register_custom_log('init_cube_pos', obs['object_position'])
+        self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
+        self.env.register_custom_log('goal_pos', obs['goal_object_position'])
+        self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
+        self.env.save_custom_logs()
         init_cube_manip = self._choose_init_cube_manip(obs)
 
         # flip the cube
@@ -384,11 +389,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
 
         # wholebody motion planning
         try:
-            self.env.register_custom_log('init_cube_pos', obs['object_position'])
-            self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
-            self.env.register_custom_log('goal_pos', obs['goal_object_position'])
-            self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
-            self.env.save_custom_logs()
             # This does planning inside
             self.planning_fc_policy = self._instantiate_planning_fc_policy(obs)
         except Exception as e:
