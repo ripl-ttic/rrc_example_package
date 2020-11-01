@@ -25,7 +25,7 @@ class Motion:
         from code.fc_force_control import ForceControlPolicy
         random_position = self.robot_position_space.sample()
         print('random position', random_position)
-        obs = self.run_actions(repeat([random_position], num_repeat=400))
+        obs = self.run_actions(repeat([random_position], num_repeat=1000))
         fc = ForceControlPolicy(self.env, use_inv_dynamics=True)
         stable_torque = fc.inverse_dynamics(obs, self.env.platform.simfinger.finger_id)
 
