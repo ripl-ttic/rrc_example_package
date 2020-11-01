@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 import numpy as np
+import gym
+from trifinger_simulation import trifingerpro_limits
 from code.const import ARENA_RADIUS, INIT_JOINT_CONF
+from code.env.cube_env import ActionType
+from code.utils import action_type_to, apply_transform, repeat, frameskip_to
 from code.utils import IKUtils, repeat
 
 class Motion:
@@ -11,6 +15,27 @@ class Motion:
         if self.env.visualization:
             from code.utils import VisualMarkers
             self.vis_markers = VisualMarkers()
+
+        self.robot_position_space = gym.spaces.Box(
+            low=trifingerpro_limits.robot_position.low,
+            high=trifingerpro_limits.robot_position.high,
+        )
+
+    def test_inv_dynamics(self):
+        from code.fc_force_control import ForceControlPolicy
+        random_position = self.robot_position_space.sample()
+        print('random position', random_position)
+        obs = self.run_actions(repeat([random_position], num_repeat=400))
+        fc = ForceControlPolicy(self.env, use_inv_dynamics=True)
+        stable_torque = fc.inverse_dynamics(obs, self.env.platform.simfinger.finger_id)
+
+        print('running inv dynamics gravity compensation...')
+        done = False
+        with frameskip_to(1, self.env):
+            with action_type_to(ActionType.TORQUE, self.env):
+                while not done:
+                    action = np.asarray(stable_torque)
+                    obs, reward, done, info = self.env.step(action)
 
     def move_onto_floor(self):
         tip_positions = np.array([0.1, 0, 0.04, -0.1, 0, 0.04, 0, 0.1, 0.04]).reshape(3, 3)
@@ -96,8 +121,10 @@ class Motion:
             self.vis_markers.add(tip_positions, color=color)
 
     def run_actions(self, action_seq):
-        for action in action_seq:
-            print(action)
-            action = np.asarray(action)
-            obs, reward, done, info = self.env.step(action)
+        with frameskip_to(1, self.env):
+            with action_type_to(ActionType.POSITION, self.env):
+                for action in action_seq:
+                    print(action)
+                    action = np.asarray(action)
+                    obs, reward, done, info = self.env.step(action)
         return obs
