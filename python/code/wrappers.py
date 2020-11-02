@@ -172,6 +172,8 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
         self.env.register_custom_log('goal_pos', obs['goal_object_position'])
         self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
+        print('init_cube_pos', obs['object_position'])
+        print('init_cube_ori', obs['object_orientation'])
         self.env.save_custom_logs()
 
         # flip the cube
@@ -371,6 +373,8 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
         self.env.register_custom_log('goal_pos', obs['goal_object_position'])
         self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
+        print('init_cube_pos', obs['object_position'])
+        print('init_cube_ori', obs['object_orientation'])
         self.env.save_custom_logs()
         init_cube_manip = self._choose_init_cube_manip(obs)
 
