@@ -30,6 +30,13 @@ class ScriptedActions:
         tip_pos_sequence = utils.complete_keypoints(self.ik_utils, self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
+    def add_raise_tips(self, obs, height=CUBE_WIDTH * 1.4):
+        last_tip_positions = self.get_last_tippos(obs)
+        above_target_tip_positions = np.copy(last_tip_positions)
+        above_target_tip_positions[:, 2] = CUBE_WIDTH * 1.4
+        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, last_tip_positions, above_target_tip_positions, unit_length=0.004)
+        self.tip_positions_list += tip_pos_sequence
+
     def add_heuristic_pregrasp(self, obs, coef=None, pregrasp_tip_pos=None):
         assert (coef is None) ^ (pregrasp_tip_pos is None), 'only one of coef or pregrasp_tip_pos needs to be set'
         if obs['robot_tip_positions'][:, 2].min() < CUBE_WIDTH / 2:
