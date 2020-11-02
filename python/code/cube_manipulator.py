@@ -117,13 +117,15 @@ class CubeManipulator:
             #     break #stop before mess up environment
 
             # sort tip positions
-            base_tip_pos = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+            base_tip_pos_ = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+            base_tip_pos = apply_transform(obs['object_position'], obs['object_orientation'], cube_tip_positions)
             print('cube_tip_pos', cube_tip_positions)
+            print('base_tip_pos_', base_tip_pos_)
             print('base_tip_pos', base_tip_pos)
+            self.env.register_custom_log('pitch_grasp_positions', base_tip_pos)
             _, inds = assign_positions_to_fingers(base_tip_pos, fk=self.env.platform.forward_kinematics)
             cube_tip_positions = cube_tip_positions[inds, :]
 
-            self.env.register_custom_log('pitch_grasp_positions', base_tip_pos)
 
             obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             print("pitching cube...")
@@ -151,8 +153,10 @@ class CubeManipulator:
                 # in_rep = 3 if self.env.simulation else 3 * 4
                 # out_rep = 8 if self.env.simulation else 8 * 4
                 # obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=in_rep, out_rep=out_rep, margin_coef=1.5)
-                base_tip_pos = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+                base_tip_pos_ = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+                base_tip_pos = apply_transform(obs['object_position'], obs['object_orientation'], cube_tip_positions)
                 print('cube_tip_pos', cube_tip_positions)
+                print('base_tip_pos_', base_tip_pos_)
                 print('base_tip_pos', base_tip_pos)
                 self.env.register_custom_log('yaw_grasp_positions', base_tip_pos)
                 obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
@@ -283,6 +287,10 @@ class CubeManipulator:
         T_cube_to_base = Transform(obs['object_position'], obs['object_orientation'])
         for margin in candidate_margins:
             tip_pos = T_cube_to_base(cube_tip_positions * margin)
+            tip_pos_ = apply_transform(obs['object_position'], obs['object_orientation'], cube_tip_positions * margin)
+            print('margin', margin)
+            print('safe pregrasp with Transform', tip_pos)
+            print('safe pregrasp with apply_transform', tip_pos_)
             qs = ik_utils.sample_no_collision_ik(tip_pos, sort_tips=False)
             if len(qs) > 0:
                 pregrasp_tip_pos.append(tip_pos)
