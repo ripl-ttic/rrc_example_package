@@ -116,7 +116,7 @@ class ForceControlPolicy(object):
         if env.simulation:
             self.cube_pd = CubePD()
         else:
-            default_force_gains = [100, 631],
+            default_force_gains = [100, 631]
             default_torque_gains = [0.31623, 0.89125]
             force_gains = [e * 2 for e in default_force_gains]
             torque_gains = [e * 2 for e in default_torque_gains]
