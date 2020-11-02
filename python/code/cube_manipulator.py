@@ -123,6 +123,7 @@ class CubeManipulator:
             print('base_tip_pos_', base_tip_pos_)
             print('base_tip_pos', base_tip_pos)
             self.env.register_custom_log('pitch_grasp_positions', base_tip_pos)
+            self.env.save_custom_logs()
             _, inds = assign_positions_to_fingers(base_tip_pos, fk=self.env.platform.forward_kinematics)
             cube_tip_positions = cube_tip_positions[inds, :]
 
@@ -159,6 +160,7 @@ class CubeManipulator:
                 print('base_tip_pos_', base_tip_pos_)
                 print('base_tip_pos', base_tip_pos)
                 self.env.register_custom_log('yaw_grasp_positions', base_tip_pos)
+                self.env.save_custom_logs()
                 obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             else:
                 assert(cube_tip_positions is not None and pitch_axis is not None and pitch_angle is not None)
@@ -280,7 +282,7 @@ class CubeManipulator:
         obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
-    def get_safe_pregrasp(self, cube_tip_positions, obs, candidate_margins=[1.3, 1.5, 1.8, 2.0]):
+    def get_safe_pregrasp(self, cube_tip_positions, obs, candidate_margins=[1.1, 1.3, 1.5, 1.8, 2.0]):
         pregrasp_tip_pos = []
         pregrasp_jconfs = []
         ik_utils = IKUtils(self.env)
