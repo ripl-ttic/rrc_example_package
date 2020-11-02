@@ -101,6 +101,7 @@ class CubeManipulator:
         return obs
 
     def align_pitch(self, obs):
+        print('running align_pitch')
         projected_goal_orientation = project_cube_xy_plane(obs['goal_object_orientation'])
         z_aligned_goal_orientation, pitch_axis, pitch_angle = align_z(obs['object_orientation'], projected_goal_orientation)
 
@@ -117,8 +118,12 @@ class CubeManipulator:
 
             # sort tip positions
             base_tip_pos = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+            print('cube_tip_pos', cube_tip_positions)
+            print('base_tip_pos', base_tip_pos)
             _, inds = assign_positions_to_fingers(base_tip_pos, fk=self.env.platform.forward_kinematics)
             cube_tip_positions = cube_tip_positions[inds, :]
+
+            self.env.register_custom_log('pitch_grasp_positions', base_tip_pos)
 
             obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             print("pitching cube...")
@@ -132,6 +137,7 @@ class CubeManipulator:
         return obs, cube_tip_positions
 
     def align_yaw(self, obs, planning=True, cube_tip_positions=None, pitch_axis=None, pitch_angle=None):
+        print('running align_yaw')
 
         rotated_axis = None
         step_yaw_angle = np.pi/3
@@ -145,6 +151,10 @@ class CubeManipulator:
                 # in_rep = 3 if self.env.simulation else 3 * 4
                 # out_rep = 8 if self.env.simulation else 8 * 4
                 # obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=in_rep, out_rep=out_rep, margin_coef=1.5)
+                base_tip_pos = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+                print('cube_tip_pos', cube_tip_positions)
+                print('base_tip_pos', base_tip_pos)
+                self.env.register_custom_log('yaw_grasp_positions', base_tip_pos)
                 obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             else:
                 assert(cube_tip_positions is not None and pitch_axis is not None and pitch_angle is not None)
