@@ -120,8 +120,8 @@ class ForceControlPolicy(object):
             default_torque_gains = [0.31623, 0.89125]
             default_max_force = 1.0
             default_max_torque = 0.05
-            force_gains = [e * 6 for e in default_force_gains]
-            torque_gains = [e * 6 for e in default_torque_gains]
+            force_gains = [e * 3 for e in default_force_gains]
+            torque_gains = [e * 3 for e in default_torque_gains]
             max_force = 4 * default_max_force
             max_torque = 4 * default_max_torque
             self.cube_pd = CubePD(max_force=max_force,
