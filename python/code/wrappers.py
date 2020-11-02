@@ -569,6 +569,9 @@ class RandomizedEnvWrapper(gym.Wrapper):
         return action
         
     def randomize_obs(self, obs):
+        from copy import deepcopy
+        
+        clean_obs = deepcopy(obs)
         
         quat_noised = self.addNoiseCubeRot(obs['object_orientation'])
         obs['object_orientation'] = quat_noised
@@ -579,6 +582,10 @@ class RandomizedEnvWrapper(gym.Wrapper):
         robot_pos_noised = self.addNoiseRobotPos(obs['robot_position'])
         obs['robot_position'] = robot_pos_noised
         
+        obs['noisy_obs'] = obs
+        obs['clean_obs'] = clean_obs
+        obs['params'] = self.current_param
+         
         return obs
     
     def addNoiseCubePos(self, pos):
