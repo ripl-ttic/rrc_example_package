@@ -5,11 +5,12 @@ from code.grasp_sampling import GraspSampler
 from pybullet_planning import plan_joint_motion
 from code.const import *
 from collections import namedtuple
-from code.utils import action_type_to, apply_transform, repeat, frameskip_to
+from code.utils import action_type_to, apply_transform, repeat, frameskip_to, IKUtils
 from scipy.spatial.transform import Rotation as R
 import functools
 import numpy as np
 from code.align_rotation import project_cube_xy_plane, pitch_rotation_times, calc_pitching_cube_tip_position, pitch_rotation_axis_and_angle, align_z, pinocchio_solve_ik, sort_map_positions_to_fingers
+from code.grasping import Transform
 
 class CubeManipulator:
     def __init__(self, env):
@@ -221,6 +222,54 @@ class CubeManipulator:
         obs = self._run_planned_actions(obs, finer_act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
+    def heuristic_grasp_approach(self, obs, cube_tip_positions=None):
+        from code.utils import repeat
+        from code.action_sequences import ScriptedActions
+
+        if cube_tip_positions is None:
+            # sample a force-closure grasp
+            sample_fc_grasp = GraspSampler(self.env, obs, mu=MU)
+            print('init_joint_conf is None --> sampling grasp points ad hoc...')
+            cube_tip_positions, tip_pos, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
+                                                                      shrink_region=0.2)
+        pregrasp_joint_conf, pregrasp_tip_pos = self.get_safe_pregrasp(cube_tip_positions, obs)
+
+        action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
+        action_sequence.add_heuristic_pregrasp(obs, pregrasp_tip_pos=pregrasp_tip_pos)
+        action_sequence.add_grasp(obs)
+        act_seq = self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs)
+
+        num_repeat = 8 if self.env.simulation else 8 * 4
+        act_seq = repeat(act_seq, num_repeat)
+        num_repeat = 40 if self.env.simulation else 400
+        act_seq += repeat([act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
+
+        obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
+        return obs
+
+    def get_safe_pregrasp(self, cube_tip_positions, obs, candidate_margins=[1.3, 1.5, 1.8, 2.0]):
+        pregrasp_tip_pos = []
+        pregrasp_jconfs = []
+        ik_utils = IKUtils(self.env)
+        T_cube_to_base = Transform(obs['object_position'], obs['object_orientation'])
+        for margin in candidate_margins:
+            tip_pos = T_cube_to_base(cube_tip_positions * margin)
+            qs = ik_utils.sample_no_collision_ik(tip_pos, sort_tips=False)
+            if len(qs) > 0:
+                pregrasp_tip_pos.append(tip_pos)
+                pregrasp_jconfs.append(qs[0])
+                print('candidate margin coef {}: safe'.format(margin))
+            else:
+                print('candidate margin coef {}: no ik solution found'.format(margin))
+
+
+        if len(pregrasp_tip_pos) == 0:
+            print('warning: no safe pregrasp pose with a margin')
+            pregrasp_tip_pos = T_cube_to_base(cube_tip_positions * candidate_margins[0])
+            pregrasp_jconfs = ik_utils.sample_ik(pregrasp_tip_pos, sort_tips=False)
+
+        return pregrasp_jconfs[-1], pregrasp_tip_pos[-1]
+
     def pitching_cube(self, obs, cube_tip_positions, num_repeat=30, final_pitch=False):
         act_seq = self.get_actions_pitching_cube(cube_tip_positions, obs, final_pitch)
         act_seq = repeat(act_seq, num_repeat)
@@ -295,8 +344,6 @@ class CubeManipulator:
 
         grasp_action_seq = []
         if cube_tip_pos is not None:
-            from code.grasping import Transform
-            from code.utils import IKUtils
             if np.linalg.norm(obs['object_position'][:2]) > ARENA_RADIUS * 2/3:
                 safe_margin_coef = 1.3
                 if margin_coef >= safe_margin_coef:

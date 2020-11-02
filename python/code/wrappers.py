@@ -222,10 +222,11 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         return obs
 
     def _grasp_approach(self, obs):
-        obs = self.cube_manipulator.grasp_approach(
-            obs,
-            margin_coef=2.0,
-            n_trials=1)
+        # obs = self.cube_manipulator.grasp_approach(
+        #     obs,
+        #     margin_coef=2.0,
+        #     n_trials=1)
+        obs = self.cube_manipulator.heuristic_grasp_approach(obs)
         return obs
 
 
@@ -482,12 +483,16 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         return planning_fc_policy
 
     def _grasp_approach(self, obs):
-        obs = self.cube_manipulator.grasp_approach(
+        # obs = self.cube_manipulator.grasp_approach(
+        #     obs,
+        #     cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
+        #     cube_pose=self.planning_fc_policy.get_init_cube_pose(),
+        #     margin_coef=2.0,
+        #     n_trials=1)
+        obs = self.cube_manipulator.heuristic_grasp_approach(
             obs,
-            cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
-            cube_pose=self.planning_fc_policy.get_init_cube_pose(),
-            margin_coef=2.0,
-            n_trials=1)
+            cube_tip_positions=self.planning_fc_policy.get_cube_tip_pos()
+        )
         return obs
 
     def _tighten_grasp(self, obs, grasp_force=0.8):
