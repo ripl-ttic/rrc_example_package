@@ -595,6 +595,7 @@ class CubeManipulator:
         action_sequence.add_grasp(obs)
         angle_clipped = action_sequence.add_yaw_rotation(obs, step_angle=step_angle)
         action_sequence.add_release(obs)
+        action_sequence.add_raise_tips(obs)
         return self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs), angle_clipped
 
     def get_yaw_diff(self, obs):
