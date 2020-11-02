@@ -461,7 +461,11 @@ class PyBulletClearGUIWrapper(gym.Wrapper):
         return obs
 
 class RandomizedEnvWrapper(gym.Wrapper):
-    def __init__(self, env, quat_var=0.05, pos_var=0.001, obs_randomize_step=3, visualize=False):
+    def __init__(self, env, 
+                 cube_rot_var=0.05, cube_pos_var=0.001, cube_randomize_step=3, cube_weight_scale=3, 
+                 action_noise_scale=0.05,
+                 robot_position_noise_scale=0.01,
+                 visualize=False):
         super().__init__(env)
         self.first_run = True
         
@@ -481,14 +485,17 @@ class RandomizedEnvWrapper(gym.Wrapper):
         }
         
         self.visualize = visualize
-        self.obs_randomize_step = obs_randomize_step
-        self.quat_var = quat_var
-        self.pos_var = pos_var
+        self.cube_randomize_step = cube_randomize_step
+        self.cube_rot_var = cube_rot_var
+        self.cube_pos_var = cube_pos_var
+        self.cube_weight_scale=cube_weight_scale
+        self.action_noise_scale=action_noise_scale
+        self.robot_position_noise_scale=robot_position_noise_scale
         
         self.step_count = 0
-        self.quat_noise = None
-        self.pos_noise = None
-        
+        self.cube_pos_noise = None
+        self.cube_rot_noise = None
+        self.param = None
                 
     def reset(self):
         obs = self.env.reset()
@@ -499,8 +506,10 @@ class RandomizedEnvWrapper(gym.Wrapper):
             self.link_indices = self.env.platform.simfinger.pybullet_link_indices
             self.client_id = self.env.platform.simfinger._pybullet_client_id
             
+            self.cube_id = self.env.platform.cube.block
+            self.cube_default_mass = p.getDynamicsInfo(bodyUniqueId=self.cube_id, linkIndex=-1, physicsClientId=self.client_id)[0]
+            
             #TODO:
-            #add cube params
             #figure out why the trifinger falling down to ground when mass and maxJointVelocity are set at the same time
             #add adoptive randomizer that randomize env depending on policy performance 
             
@@ -515,40 +524,95 @@ class RandomizedEnvWrapper(gym.Wrapper):
         #self.set_params(**{'mass':100})
         
         self.step_count = 0
-        self.samplePosNoise()
-        self.sampleQuatNoise()
-        
-        if self.visualize:
-            from rrc_simulation.visual_objects import CubeMarker
-            self.marker = CubeMarker(width=0.065, position=obs['object_position'], orientation=obs['object_orientation'])
+        self.sampleCubePosNoise()
+        self.sampleCubeRotNoise()
         
         return obs
     
     def step(self, action):
+        action = self.randomize_action(action)
         observation, reward, is_done, info = self.env.step(action)
         observation = self.randomize_obs(observation)
         
         self.step_count += 1
-        if self.step_count > self.obs_randomize_step:
-            self.samplePosNoise()
-            self.sampleQuatNoise()
+        if self.step_count > self.cube_randomize_step:
+            self.sampleCubePosNoise()
+            self.sampleCubeRotNoise()
             self.step_count = 0
         
         if self.visualize:
             self.marker.set_state(position=observation['object_position'], orientation=observation['object_orientation'])
-        
         return observation, reward, is_done, info
+    
+    def randomize_action(self, action):
+        action_type = self.env.action_type
+        position_action_space = TriFingerPlatform.spaces.robot_position.gym
+        torq_action_space = TriFingerPlatform.spaces.robot_torque.gym
+        
+        if action_type == ActionType.POSITION:
+            noise = position_action_space.sample() * self.action_noise_scale
+            action = np.clip(action+noise, position_action_space.low, position_action_space.high)
+        elif action_type == ActionType.TORQUE:
+            noise = torq_action_space.sample() * self.action_noise_scale
+            action = np.clip(action+noise, torq_action_space.low, torq_action_space.high)
+        elif action_type == ActionType.TORQUE_AND_POSITION:
+            pos_action =  action['position']
+            torq_action = action['torque']
+            
+            pos_noise  = position_action_space.sample() * self.action_noise_scale
+            torq_noise = torq_action_space.sample() * self.action_noise_scale
+            
+            pos_action  = np.clip(pos_action+pos_noise, position_action_space.low, position_action_space.high)
+            torq_action = np.clip(torq_action+torq_noise, torq_action_space.low, torq_action_space.high)
+            
+            action = {'torque':torq_action, 'position':pos_action}
+        return action
         
     def randomize_obs(self, obs):
-        quat_noised = self.addNoiseQuat(obs['object_orientation'])
+        
+        quat_noised = self.addNoiseCubeRot(obs['object_orientation'])
         obs['object_orientation'] = quat_noised
         
-        pos_noised = self.addNoisePos(obs['object_position'])
+        pos_noised = self.addNoiseCubePos(obs['object_position'])
         obs['object_position'] = pos_noised
+        
+        robot_pos_noised = self.addNoiseRobotPos(obs['robot_position'])
+        obs['robot_position'] = robot_pos_noised
         
         return obs
     
+    def addNoiseCubePos(self, pos):
+        return pos + self.cube_pos_noise
+    
+    def addNoiseCubeRot(self, quat):
+        from scipy.spatial.transform import Rotation as R
+        rot = R.from_quat(quat) * self.cube_rot_noise
+        return rot.as_quat()
+    
+    def addNoiseRobotPos(self, pos):
+        noise = self.env.observation_space['robot_position'].sample() * self.robot_position_noise_scale
+        high = self.env.observation_space['robot_position'].high
+        low  = self.env.observation_space['robot_position'].low
+        pos = noise + pos
+        return np.clip(pos, low, high)
+    
+    def sampleCubePosNoise(self):
+        self.cube_pos_noise = np.random.normal(0, scale=self.cube_pos_var, size=3)
+        
+    def sampleCubeRotNoise(self):
+        self.cube_rot_noise = self.randGaussRotation(self.cube_rot_var)
+    
+    def randGaussRotation(self, var, degrees=False):  
+        from scipy.spatial.transform import Rotation as R
+        order = 'ZYX'
+        euler = np.random.normal(0, scale=var, size=3)
+        return R.from_euler(order, euler, degrees=degrees)
+    
     def randomize_param(self):
+        cube_mass = np.random.uniform(low=1, high=self.cube_weight_scale) * self.cube_default_mass
+        cube_params = {"mass": cube_mass}
+        self.set_cube_params(**cube_params)
+        
         params = {}
         dic = self.default_params
         for k in dic.keys():
@@ -557,32 +621,42 @@ class RandomizedEnvWrapper(gym.Wrapper):
             elif type(dic[k]) in [list, np.ndarray]:
                 params[k] = np.array(dic[k]) * np.random.uniform(low=0.9, high=1.1, size=len(dic[k]))
             else:
-                raise(ValueError)                
-            
-        self.set_params(**params)
+                raise(ValueError)          
+        self.set_robot_params(**params)
         
-            
+        self.current_param = params
+        self.current_param["cube_mass"] = cube_mass
+        
     def set_default(self):
+        cube_params = {"mass":self.cube_default_mass}
+        self.set_cube_params(**cube_params)
         self.set_params(**self.default_params)
+        
+        self.current_param = self.default_params
+        self.current_param["cube_mass"] = self.cube_default_mass
+        
+    def set_cube_params(self, **kwargs):
+        p.changeDynamics(bodyUniqueId=self.cube_id, linkIndex=-1, physicsClientId=self.client_id,
+                         **kwargs)
                              
-    def set_params(self, **kwargs):
+    def set_robot_params(self, **kwargs):
         # set params by passing kw dictionary
         # all values of dict should be list which length is 3 or 9 for different params or float/int for the same param
         
-        self.check_param_dict(kwargs)
+        self.check_robot_param_dict(kwargs)
         for i, link_id in enumerate(self.link_indices):
-            joint_kwargs = self.get_param_dict(kwargs, i)
+            joint_kwargs = self.get_robot_param_dict(kwargs, i)
             #print(link_id, joint_kwargs)
             p.changeDynamics(bodyUniqueId=self.finger_id, linkIndex=link_id, physicsClientId=self.client_id,
                              **joint_kwargs)
             
             
-    def check_param_dict(self, dic):
+    def check_robot_param_dict(self, dic):
         for v in dic.values():
             assert (type(v) in [list, np.ndarray] and len(v) in [3, 9]) or type(v) in [float, int]
                 
             
-    def get_param_dict(self, dic, i):
+    def get_robot_param_dict(self, dic, i):
         ret_dic = {}
         for k in dic.keys():
             if type(dic[k]) in [float, int]:
@@ -595,21 +669,3 @@ class RandomizedEnvWrapper(gym.Wrapper):
                 raise(ValueError)
             
         return ret_dic
-    
-    def addNoisePos(self, pos):
-        return pos + self.pos_noise
-    
-    def addNoiseQuat(self, quat):
-        rot = R.from_quat(quat) * self.quat_noise
-        return rot.as_quat()
-    
-    def samplePosNoise(self):
-        self.pos_noise = np.random.normal(0, scale=self.pos_var, size=3)
-        
-    def sampleQuatNoise(self):
-        self.quat_noise = self.randGaussRotation(self.quat_var)
-    
-    def randGaussRotation(self, var, degrees=False):  
-        order = 'ZYX'
-        euler = np.random.normal(0, scale=var, size=3)
-        return R.from_euler(order, euler, degrees=degrees)
