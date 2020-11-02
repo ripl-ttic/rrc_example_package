@@ -30,6 +30,10 @@ def main(difficulty, goal_dict):
         'rank': 0,
         'episode_length': 100000
     }
+    if difficulty in [1, 2, 3]:
+        eval_config['action_space'] = 'torque'
+    else:
+        eval_config['action_space'] = 'torque_and_position'
     env = make_training_env(goal_dict, difficulty, sim=False, visualization=False,
                             **eval_config)
 
