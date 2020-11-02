@@ -113,7 +113,21 @@ class TipPD(object):
 class ForceControlPolicy(object):
     def __init__(self, env, apply_torques=True, tip_pd=None, mu=1.0,
                  grasp_force=0.0, viz=None, use_inv_dynamics=True):
-        self.cube_pd = CubePD()
+        if env.simulation:
+            self.cube_pd = CubePD()
+        else:
+            default_force_gains = [100, 631]
+            default_torque_gains = [0.31623, 0.89125]
+            default_max_force = 1.0
+            default_max_torque = 0.05
+            force_gains = [default_force_gains[0] * 3, default_force_gains[1] * 2.4]
+            torque_gains = [default_torque_gains[0] * 3, default_torque_gains[1] * 2.4]
+            max_force = 3 * default_max_force
+            max_torque = 3 * default_max_torque
+            self.cube_pd = CubePD(max_force=max_force,
+                                  max_torque=max_torque,
+                                  force_gains=force_gains,
+                                  torque_gains=torque_gains)
         self.tip_pd = tip_pd
         self.cube = Cube(0.0325, CoulombFriction(mu=mu))
         self.env = env
