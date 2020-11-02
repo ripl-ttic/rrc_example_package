@@ -2,10 +2,10 @@
 from code.env.cube_env import ActionType
 from code.fc_force_control import ForceControlPolicy, Viz, grasp_force_control
 from code.grasp_sampling import GraspSampler
-from pybullet_planning import plan_joint_motion
+from pybullet_planning import plan_joint_motion, plan_direct_joint_motion
 from code.const import *
 from collections import namedtuple
-from code.utils import action_type_to, apply_transform, repeat, frameskip_to, IKUtils
+from code.utils import action_type_to, apply_transform, repeat, frameskip_to, IKUtils, assign_positions_to_fingers
 from scipy.spatial.transform import Rotation as R
 import functools
 import numpy as np
@@ -31,7 +31,8 @@ class CubeManipulator:
     def move_to_target(self, obs, target_pos, target_ori, force_control=True, skip_planned_motions=False, avoid_top=False, flipping=False):
         # move to grasp pose
         print('approach to grasp pose...')
-        obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
+        # obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
+        obs = self.heuristic_grasp_approach(obs)
 
         # tighten the grasp
         print('tightening the grasp...')
@@ -110,9 +111,16 @@ class CubeManipulator:
 
         for i in range(pitch_times):
             print("reaching grasp position...")
-            obs, cube_tip_positions, suc = self.reach_tip_positions(obs, cube_tip_positions)
-            if not suc:
-                break #stop before mess up environment
+            # obs, cube_tip_positions, suc = self.reach_tip_positions(obs, cube_tip_positions)
+            # if not suc:
+            #     break #stop before mess up environment
+
+            # sort tip positions
+            base_tip_pos = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+            _, inds = assign_positions_to_fingers(base_tip_pos, fk=self.env.platform.forward_kinematics)
+            cube_tip_positions = cube_tip_positions[inds, :]
+
+            obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             print("pitching cube...")
             num_repeat = 5 if self.env.simulation else 5 * 10
             obs = self.pitching_cube(obs, cube_tip_positions, num_repeat=num_repeat, final_pitch=(i == pitch_times - 1))
@@ -134,9 +142,10 @@ class CubeManipulator:
             print("reaching grasp position...")
             if planning:
                 cube_tip_positions, cube_pose = self.calc_yaw_tip_positions(obs)
-                in_rep = 3 if self.env.simulation else 3 * 4
-                out_rep = 8 if self.env.simulation else 8 * 4
-                obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=in_rep, out_rep=out_rep, margin_coef=1.5)
+                # in_rep = 3 if self.env.simulation else 3 * 4
+                # out_rep = 8 if self.env.simulation else 8 * 4
+                # obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=in_rep, out_rep=out_rep, margin_coef=1.5)
+                obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             else:
                 assert(cube_tip_positions is not None and pitch_axis is not None and pitch_angle is not None)
                 obs, cube_tip_positions, suc = self.reach_tip_positions(obs, cube_tip_positions)
@@ -232,10 +241,20 @@ class CubeManipulator:
             print('init_joint_conf is None --> sampling grasp points ad hoc...')
             cube_tip_positions, tip_pos, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
                                                                       shrink_region=0.2)
+        action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
         pregrasp_joint_conf, pregrasp_tip_pos = self.get_safe_pregrasp(cube_tip_positions, obs)
 
-        action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
-        action_sequence.add_heuristic_pregrasp(obs, pregrasp_tip_pos=pregrasp_tip_pos)
+        # if the pregrasp_joint_conf is achievable with a direct motion, just do that
+        # otherwise, temporary move the fingertips above the cube, and then move the tips to the target positions.
+        planned_motion = plan_direct_joint_motion(**self._get_grasp_conf(pregrasp_joint_conf, config_type='cautious'))
+        if planned_motion is not None:
+            num_repeats = 4 if self.env.simulation else 4 * 4
+            planned_motion = repeat(planned_motion, num_repeats)
+            obs = self._run_planned_actions(obs, planned_motion, ActionType.POSITION, frameskip=1)
+        else:
+            # NOTE: This moves the finger tips above the cube first.
+            action_sequence.add_raise_tips(obs)
+            action_sequence.add_heuristic_pregrasp(obs, pregrasp_tip_pos=pregrasp_tip_pos)
         action_sequence.add_grasp(obs)
         act_seq = self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs)
 
@@ -475,6 +494,12 @@ class CubeManipulator:
                 MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
                 MaxDist(dist=0.015, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
             ]
+        elif config_type == 'cautious':
+            config = default_config
+            config['max_dist_on'] = [
+                MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
+                MaxDist(dist=0.03, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
+            ]
         elif config_type == 'flipping':
             config = {
                 'body': self.env.platform.simfinger.finger_id,
@@ -595,7 +620,6 @@ class CubeManipulator:
         action_sequence.add_grasp(obs)
         angle_clipped = action_sequence.add_yaw_rotation(obs, step_angle=step_angle)
         action_sequence.add_release(obs)
-        action_sequence.add_raise_tips(obs)
         return self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs), angle_clipped
 
     def get_yaw_diff(self, obs):

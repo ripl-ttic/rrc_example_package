@@ -3,6 +3,7 @@ import numpy as np
 import pybullet as p
 import itertools
 from scipy.spatial.transform import Rotation as R
+from trifinger_simulation import trifingerpro_limits
 
 
 def set_seed(seed=0):
@@ -517,14 +518,13 @@ class IKUtils:
         self.link_ids = env.platform.simfinger.pybullet_link_indices
         self.cube_id = env.platform.cube.block
         self.env = env
-        self.tips_init = self.fk(INIT_JOINT_CONF)
 
     def sample_no_collision_ik(self, target_tip_positions, sort_tips=False, slacky_collision=False):
         from pybullet_planning.interfaces.kinematics.ik_utils import sample_multiple_ik_with_collision
 
         with keep_state(self.env):
             if sort_tips:
-                target_tip_positions, _ = self._assign_positions_to_fingers(target_tip_positions)
+                target_tip_positions, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
             collision_fn = self._get_collision_fn(slacky_collision)
             sample_fn = self._get_sample_fn()
             solutions = sample_multiple_ik_with_collision(self.ik, collision_fn, sample_fn,
@@ -538,7 +538,7 @@ class IKUtils:
 
         with keep_state(self.env):
             if sort_tips:
-                target_tip_positions, _ = self._assign_positions_to_fingers(target_tip_positions)
+                target_tip_positions, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
             sample_fn = self._get_sample_fn()
             solutions = sample_multiple_ik_with_collision(self.ik, no_collision_fn, sample_fn,
                                                           target_tip_positions, num_samples=3)
@@ -577,20 +577,6 @@ class IKUtils:
             s = np.random.rand(space.shape[0])
             return s * (space.high - space.low) + space.low
         return _sample_fn
-
-    def _assign_positions_to_fingers(self, tips):
-        min_cost = 1000000
-        opt_tips = []
-        opt_inds = [0, 1, 2]
-        for v in itertools.permutations([0, 1, 2]):
-            sorted_tips = tips[v, :]
-            cost = np.linalg.norm(sorted_tips - self.tips_init)
-            if min_cost > cost:
-                min_cost = cost
-                opt_tips = sorted_tips
-                opt_inds = v
-
-        return opt_tips, opt_inds
 
     def get_joint_conf(self):
         obs = self.env.platform.simfinger._get_latest_observation()
@@ -671,3 +657,18 @@ def complete_joint_configs(start, goal, unit_rad=0.008):
     num_keypoints = int(max_diff / unit_rad)
     joint_configs = [start + (goal - start) * i / num_keypoints for i in range(num_keypoints)]
     return joint_configs
+
+def assign_positions_to_fingers(tips, fk):
+    init_tip_pos = fk(trifingerpro_limits.robot_position.default)
+    min_cost = 1000000
+    opt_tips = []
+    opt_inds = [0, 1, 2]
+    for v in itertools.permutations([0, 1, 2]):
+        sorted_tips = tips[v, :]
+        cost = np.linalg.norm(sorted_tips - init_tip_pos)
+        if min_cost > cost:
+            min_cost = cost
+            opt_tips = sorted_tips
+            opt_inds = v
+
+    return opt_tips, opt_inds
