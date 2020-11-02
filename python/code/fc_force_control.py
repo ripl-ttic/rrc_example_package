@@ -118,8 +118,8 @@ class ForceControlPolicy(object):
         else:
             default_force_gains = [100, 631]
             default_torque_gains = [0.31623, 0.89125]
-            force_gains = [e * 2 for e in default_force_gains]
-            torque_gains = [e * 2 for e in default_torque_gains]
+            force_gains = [e * 3 for e in default_force_gains]
+            torque_gains = [e * 3 for e in default_torque_gains]
             self.cube_pd = CubePD(force_gains=force_gains, torque_gains=torque_gains)
         self.tip_pd = tip_pd
         self.cube = Cube(0.0325, CoulombFriction(mu=mu))
