@@ -461,9 +461,34 @@ class PyBulletClearGUIWrapper(gym.Wrapper):
         return obs
 
 class RandomizedEnvWrapper(gym.Wrapper):
-    def __init__(self, env):
+    def __init__(self, env, quat_var=0.05, pos_var=0.001, obs_randomize_step=3, visualize=False):
         super().__init__(env)
         self.first_run = True
+        
+        #copied from __set_pybullet_params in simfinger.py
+        self.default_params = {
+            'mass': [0.26, 0.25, 0.021], #setting mass and maxJointVelocity at the same makes simfinger falling down????
+            #'maxJointVelocity':10,
+            'restitution':0.8,
+            'jointDamping':0.0,
+            'lateralFriction':0.1,
+            'spinningFriction':0.1,
+            'rollingFriction':0.1,
+            'linearDamping':0.5,
+            'angularDamping':0.5,
+            'contactStiffness':0.1,
+            'contactDamping':0.05
+        }
+        
+        self.visualize = visualize
+        self.obs_randomize_step = obs_randomize_step
+        self.quat_var = quat_var
+        self.pos_var = pos_var
+        
+        self.step_count = 0
+        self.quat_noise = None
+        self.pos_noise = None
+        
                 
     def reset(self):
         obs = self.env.reset()
@@ -479,38 +504,51 @@ class RandomizedEnvWrapper(gym.Wrapper):
             #figure out why the trifinger falling down to ground when mass and maxJointVelocity are set at the same time
             #add adoptive randomizer that randomize env depending on policy performance 
             
-            #copied from __set_pybullet_params in simfinger.py
-            self.default_params = {
-                'mass': [0.26, 0.25, 0.021], #setting mass and maxJointVelocity at the same makes simfinger falling down????
-                #'maxJointVelocity':10,
-                'restitution':0.8,
-                'jointDamping':0.0,
-                'lateralFriction':0.1,
-                'spinningFriction':0.1,
-                'rollingFriction':0.1,
-                'linearDamping':0.5,
-                'angularDamping':0.5,
-                'contactStiffness':0.1,
-                'contactDamping':0.05
-            }
-            
-            # for link_id in self.link_indices:
-            #      p.changeDynamics(bodyUniqueId=self.finger_id, linkIndex=link_id, physicsClientId=self.client_id,
-            #                       mass=100, maxJointVelocity=10)
-            
             #cannot get all information by getDynamicsInfo. this returns parts of parameter values set 
-            for ind in self.link_indices[:3]:
-                print(p.getDynamicsInfo(bodyUniqueId=self.finger_id, linkIndex=ind, physicsClientId=self.client_id))    
+            # for ind in self.link_indices[:3]:
+            #     print(p.getDynamicsInfo(bodyUniqueId=self.finger_id, linkIndex=ind, physicsClientId=self.client_id))    
             
             self.first_run=False
         
-        self.randomize()
+        self.randomize_param()
         #self.set_default()
         #self.set_params(**{'mass':100})
         
-        return obs
+        self.step_count = 0
+        self.samplePosNoise()
+        self.sampleQuatNoise()
         
-    def randomize(self):
+        if self.visualize:
+            from rrc_simulation.visual_objects import CubeMarker
+            self.marker = CubeMarker(width=0.065, position=obs['object_position'], orientation=obs['object_orientation'])
+        
+        return obs
+    
+    def step(self, action):
+        observation, reward, is_done, info = self.env.step(action)
+        observation = self.randomize_obs(observation)
+        
+        self.step_count += 1
+        if self.step_count > self.obs_randomize_step:
+            self.samplePosNoise()
+            self.sampleQuatNoise()
+            self.step_count = 0
+        
+        if self.visualize:
+            self.marker.set_state(position=observation['object_position'], orientation=observation['object_orientation'])
+        
+        return observation, reward, is_done, info
+        
+    def randomize_obs(self, obs):
+        quat_noised = self.addNoiseQuat(obs['object_orientation'])
+        obs['object_orientation'] = quat_noised
+        
+        pos_noised = self.addNoisePos(obs['object_position'])
+        obs['object_position'] = pos_noised
+        
+        return obs
+    
+    def randomize_param(self):
         params = {}
         dic = self.default_params
         for k in dic.keys():
@@ -557,3 +595,21 @@ class RandomizedEnvWrapper(gym.Wrapper):
                 raise(ValueError)
             
         return ret_dic
+    
+    def addNoisePos(self, pos):
+        return pos + self.pos_noise
+    
+    def addNoiseQuat(self, quat):
+        rot = R.from_quat(quat) * self.quat_noise
+        return rot.as_quat()
+    
+    def samplePosNoise(self):
+        self.pos_noise = np.random.normal(0, scale=self.pos_var, size=3)
+        
+    def sampleQuatNoise(self):
+        self.quat_noise = self.randGaussRotation(self.quat_var)
+    
+    def randGaussRotation(self, var, degrees=False):  
+        order = 'ZYX'
+        euler = np.random.normal(0, scale=var, size=3)
+        return R.from_euler(order, euler, degrees=degrees)
