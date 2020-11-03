@@ -304,8 +304,8 @@ class CubeManipulator:
 
         if len(pregrasp_tip_pos) == 0:
             print('warning: no safe pregrasp pose with a margin')
-            pregrasp_tip_pos = T_cube_to_base(cube_tip_positions * candidate_margins[0])
-            pregrasp_jconfs = ik_utils.sample_ik(pregrasp_tip_pos, sort_tips=False)
+            pregrasp_tip_pos = [T_cube_to_base(cube_tip_positions * candidate_margins[0])]
+            pregrasp_jconfs = [ik_utils.sample_ik(pregrasp_tip_pos, sort_tips=False)[0]]
 
         return pregrasp_jconfs[-1], pregrasp_tip_pos[-1]
 
