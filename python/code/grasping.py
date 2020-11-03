@@ -4,7 +4,7 @@ from scipy.spatial import Delaunay
 from scipy.spatial.qhull import QhullError
 from cvxopt import matrix
 from cvxopt import solvers
-import cvxpy as cp
+# import cvxpy as cp
 import pybullet as p
 
 
@@ -49,34 +49,34 @@ def solve_qp(P, q, G, h, A, b, **kwargs):
         return None
 
 
-def solve_conic_program(G, wrench, mu):
-    # the optimization variables are the forces on each tip
-    f = cp.Variable(9)
-    # dummy = cp.Variable(1)
-
-    # the optimization objective is constant since it's actually a constraint satisfication problem
-    objective = cp.Minimize(cp.sum_squares(f))
-
-    # two constraints:
-    # 1. forces meet the external force
-    constraint1 = G @ f == wrench
-    # 2. forces inside the friction cone
-    constraint21 = cp.SOC(mu * f[2], f[0:2])
-    constraint22 = cp.SOC(mu * f[5], f[3:5])
-    constraint23 = cp.SOC(mu * f[8], f[6:8])
-    constraints = [constraint1, constraint21, constraint22, constraint23]
-    # constraints = [cp.norm(dummy) <= -1]
-
-    # the optimization problem
-    prob = cp.Problem(objective, constraints)
-
-    # solve the problem
-    prob.solve()
-    print("The optimal value is", prob.value)
-    print("A solution f is", f.value)
-    if f.value is None:
-        return None
-    return np.array(f.value).reshape((3, 3))
+# def solve_conic_program(G, wrench, mu):
+#     # the optimization variables are the forces on each tip
+#     f = cp.Variable(9)
+#     # dummy = cp.Variable(1)
+#
+#     # the optimization objective is constant since it's actually a constraint satisfication problem
+#     objective = cp.Minimize(cp.sum_squares(f))
+#
+#     # two constraints:
+#     # 1. forces meet the external force
+#     constraint1 = G @ f == wrench
+#     # 2. forces inside the friction cone
+#     constraint21 = cp.SOC(mu * f[2], f[0:2])
+#     constraint22 = cp.SOC(mu * f[5], f[3:5])
+#     constraint23 = cp.SOC(mu * f[8], f[6:8])
+#     constraints = [constraint1, constraint21, constraint22, constraint23]
+#     # constraints = [cp.norm(dummy) <= -1]
+#
+#     # the optimization problem
+#     prob = cp.Problem(objective, constraints)
+#
+#     # solve the problem
+#     prob.solve()
+#     print("The optimal value is", prob.value)
+#     print("A solution f is", f.value)
+#     if f.value is None:
+#         return None
+#     return np.array(f.value).reshape((3, 3))
 
 
 class Transform(object):
