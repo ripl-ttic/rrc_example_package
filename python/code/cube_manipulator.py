@@ -53,7 +53,7 @@ class CubeManipulator:
         else:
             #rotating not implemented yet
             print('moving to the goal...')
-            num_repeat = 40 if self.env.simulation else 40 * 10
+            num_repeat = 4 if self.env.simulation else 4 * 4
             obs = self.moving_cube(obs, target_pos, num_repeat=num_repeat)
 
         return obs
@@ -512,7 +512,7 @@ class CubeManipulator:
             config = default_config
             config['max_dist_on'] = [
                 MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
-                MaxDist(dist=0.015, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
+                MaxDist(dist=0.03, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
             ]
         elif config_type == 'cautious':
             config = default_config
