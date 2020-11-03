@@ -97,11 +97,13 @@ class GraspSampler(object):
         contacts = [self.cube.contact_from_tip_position(point)
                     for point in points]
         if not self.cube.force_closure_test(contacts):
+            print("Grasp: not in force closure")
             return True, None
         points_base = self.T_cube_to_base(points)
         qs = self.ik_utils.sample_no_collision_ik(points_base, sort_tips=False,
                                                   slacky_collision=self.slacky_collision)
         if len(qs) == 0:
+            print("Grasp: NO IK Solution")
             return True, None
         return False, qs[0]
 
