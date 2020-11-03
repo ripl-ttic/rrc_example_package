@@ -550,13 +550,14 @@ class IKUtils:
 
     def _get_collision_conf(self, slacky_collision):
         from code.const import COLLISION_TOLERANCE
+        workspace_id = 0
         if slacky_collision:
             disabled_collisions = [((self.finger_id, tip_id), (self.cube_id, -1))
                                    for tip_id in self.tip_ids]
             config = {
                 'body': self.finger_id,
                 'joints': self.link_ids,
-                'obstacles': [self.cube_id],
+                'obstacles': [self.cube_id, workspace_id],
                 'self_collisions': True,
                 'extra_disabled_collisions': disabled_collisions,
                 'max_distance': -COLLISION_TOLERANCE
@@ -565,7 +566,7 @@ class IKUtils:
             config = {
                 'body': self.finger_id,
                 'joints': self.link_ids,
-                'obstacles': [self.cube_id],
+                'obstacles': [self.cube_id, workspace_id],
                 'self_collisions': False
             }
 
