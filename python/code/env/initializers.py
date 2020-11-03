@@ -32,6 +32,28 @@ class RandomInitializer:
         return move_cube.sample_goal(difficulty=self.difficulty)
 
 
+class InitCubeRotatedInitializer:
+    """Initializer that samples random initial states and goals."""
+
+    def __init__(self):
+        """Initialize.
+        Args:
+            difficulty (int):  Difficulty level for sampling goals.
+        """
+        self.difficulty = 4
+
+    def get_initial_state(self):
+        """Get a random initial object pose (always on the ground)."""
+        move_cube.sample_goal(difficulty=4)
+        move_cube.sample_goal(difficulty=4)
+        return move_cube.sample_goal(difficulty=4)
+
+    def get_goal(self):
+        """Get a random goal depending on the difficulty."""
+        return move_cube.sample_goal(difficulty=self.difficulty)
+
+
+
 class EvalEpisodesInitializer:
     '''Initialize episodes according to json files saved in eval_episodes'''
 
@@ -122,5 +144,11 @@ class Task4SmallRotation:
 
 
 random_init = RandomInitializer
-eval_init = EvalEpisodesInitializer
-task4_small_rot_init = Task4SmallRotation
+# Each line internally loads large number of json files, but it runs pretty fast (<0.2s in total) on a laptop. So it'd be all right.
+task1_eval_init = EvalEpisodesInitializer(difficulty=1)
+task2_eval_init = EvalEpisodesInitializer(difficulty=2)
+task3_eval_init = EvalEpisodesInitializer(difficulty=3)
+task4_eval_init = EvalEpisodesInitializer(difficulty=4)
+
+task4_small_rot_init = Task4SmallRotation()
+init_cube_rotated_init = InitCubeRotatedInitializer()

@@ -126,10 +126,10 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         if self.action_type == ActionType.TORQUE:
             self.action_space = robot_torque_space
-            self._initial_action = trifingerpro_limits.robot_torque.default
+            self.initial_action = trifingerpro_limits.robot_torque.default
         elif self.action_type == ActionType.POSITION:
             self.action_space = robot_position_space
-            self._initial_action = trifingerpro_limits.robot_position.default
+            self.initial_action = INIT_JOINT_CONF  # trifingerpro_limits.robot_position.default
         elif self.action_type == ActionType.TORQUE_AND_POSITION:
             self.action_space = gym.spaces.Dict(
                 {
@@ -137,9 +137,9 @@ class RealRobotCubeEnv(gym.GoalEnv):
                     "position": robot_position_space,
                 }
             )
-            self._initial_action = {
+            self.initial_action = {
                 "torque": trifingerpro_limits.robot_torque.default,
-                "position": trifingerpro_limits.robot_position.default,
+                "position": INIT_JOINT_CONF  # trifingerpro_limits.robot_position.default,
             }
         else:
             raise ValueError("Invalid action_type")
@@ -167,6 +167,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         self.pinocchio_utils = PinocchioUtils()
         self.prev_observation = None
+        self._prev_step_report = 0
 
     def step(self, action):
         """Run one timestep of the environment's dynamics.
@@ -238,8 +239,15 @@ class RealRobotCubeEnv(gym.GoalEnv):
         if self._termination_fn is not None:
             is_done = is_done or self._termination_fn(observation)
 
+        # report current step_count
+        if self.step_count - self._prev_step_report > 200:
+            print('current step_count:', self.step_count)
+            self._prev_step_report = self.step_count
+
         if is_done:
-            print('saving custom logs...')
+            print('is_done is True. Episode terminates.')
+            print('episode length', self.episode_length)
+            print('step_count', self.step_count)
             self.save_custom_logs()
 
         return observation, reward, is_done, self.info.copy()
@@ -259,7 +267,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
 
         # need to already do one step to get initial observation
         # TODO disable frameskip here?
-        self.prev_observation, _, _, _ = self.step(self._initial_action)
+        self.prev_observation, _, _, _ = self.step(self.initial_action)
         return self.prev_observation
 
     def _reset_platform_frontend(self):
@@ -376,8 +384,11 @@ class RealRobotCubeEnv(gym.GoalEnv):
         self.custom_logs[name] = data
 
     def save_custom_logs(self):
+        print('saving custom logs...')
         if not os.path.isdir(CUSTOM_LOGDIR):
+            print('{} does not exist. skip saving custom logs.'.format(CUSTOM_LOGDIR))
             return
-        with shelve.open(CUSTOM_LOGDIR + '/custom_data') as f:
+        path = os.path.join(CUSTOM_LOGDIR, 'custom_data')
+        with shelve.open(path, writeback=True) as f:
             for key, val in self.custom_logs.items():
                 f[key] = val

@@ -3,10 +3,15 @@ import pybullet as p
 import numpy as np
 import gym
 from trifinger_simulation import TriFingerPlatform
+from trifinger_simulation import trifingerpro_limits
 from trifinger_simulation import camera
 from code.env.cube_env import ActionType
 import cv2
 from dl import nest
+from code.const import INIT_JOINT_CONF
+import itertools
+from code.grasping import Transform
+from scipy.spatial.transform import Rotation as R
 
 EXCEP_MSSG = "================= captured exception =================\n" + \
     "{message}\n" + "{error}\n" + '=================================='
@@ -69,6 +74,41 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
             old_obs['action_position'] = obs['action']['position']
         return old_obs
 
+class InitStayHoldWrapper(gym.Wrapper):
+    '''
+    Oftentimes the initial pose of the robot is quite off from the robot_position.default.
+    And that causes annoying issues.
+    This wrapper forces to apply env.initial_action for the first "hold_steps" steps to properly reset the robot pose.
+    '''
+    def __init__(self, env, hold_steps=300):
+        super().__init__(env)
+        self.hold_steps = hold_steps
+        self.env = env
+
+    def reset(self):
+        from code.utils import action_type_to
+        obs = self.env.reset()
+
+        # step environment for "hold_steps" steps
+        counter = 0
+        done = False
+        initial_position = obs['robot_position']
+        while not done and counter < self.hold_steps:
+            desired_position = np.copy(initial_position)
+            # close the bottom joint (joint 2) first, and then close other joints together (joint 0, joint 1)
+            if counter < self.hold_steps / 2:
+                # close joint 2
+                for i in range(3):
+                    desired_position[3 * i + 2] = -2.4   # joint 2 (default: -1.7, min: -2.7, max: 0.0)
+                    desired_position[3 * i + 1] = 1.4   # joint 1 (default: 0.9, min: 0.0, max: 1.57)
+            else:
+                desired_position = INIT_JOINT_CONF
+
+            with action_type_to(ActionType.POSITION, self.env):
+                obs, reward, done, info = self.env.step(desired_position)
+            counter += 1
+
+        return obs
 
 class FlatObservationWrapper(gym.ObservationWrapper):
     def __init__(self, env):
@@ -107,10 +147,33 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         assert self.env.action_type == ActionType.TORQUE
         self.action_space = TriFingerPlatform.spaces.robot_torque.gym
         spaces = TriFingerPlatform.spaces
+<<<<<<< HEAD
         ob_space = dict(self.observation_space.spaces)
         ob_space['base_action_torque'] = spaces.robot_torque.gym
         self.observation_space = gym.spaces.Dict(ob_space)
         self.observation_names.append("base_action_torque")
+=======
+        self.observation_space = gym.spaces.Dict(
+            {
+                "robot_position": spaces.robot_position.gym,
+                "robot_velocity": spaces.robot_velocity.gym,
+                "robot_tip_positions": gym.spaces.Box(
+                    low=np.array([spaces.object_position.low] * 3),
+                    high=np.array([spaces.object_position.high] * 3),
+                ),
+                "object_position": spaces.object_position.gym,
+                "object_orientation": spaces.object_orientation.gym,
+                "goal_object_position": spaces.object_position.gym,
+                "goal_object_orientation": spaces.object_orientation.gym,
+                "tip_force": gym.spaces.Box(
+                    low=np.zeros(3),
+                    high=np.ones(3),
+                ),
+                "torque_action": spaces.robot_torque.gym,
+            }
+        )
+        # self.observation_names.append("torque_action")
+>>>>>>> takumas-branch
         from code.fc_force_control import ForceControlPolicy
         self.pi = ForceControlPolicy(self.env, apply_torques=apply_torques)
         self.cube_manipulator = CubeManipulator(env)
@@ -131,6 +194,13 @@ class ResidualLearningFCWrapper(gym.Wrapper):
 
     def reset(self):
         obs = self.env.reset()
+        self.env.register_custom_log('init_cube_pos', obs['object_position'])
+        self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
+        self.env.register_custom_log('goal_pos', obs['goal_object_position'])
+        self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
+        print('init_cube_pos', obs['object_position'])
+        print('init_cube_ori', obs['object_orientation'])
+        self.env.save_custom_logs()
 
         # flip the cube
         if self.is_level_4:
@@ -185,10 +255,11 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         return obs
 
     def _grasp_approach(self, obs):
-        obs = self.cube_manipulator.grasp_approach(
-            obs,
-            margin_coef=1.3,
-            n_trials=1)
+        # obs = self.cube_manipulator.grasp_approach(
+        #     obs,
+        #     margin_coef=2.0,
+        #     n_trials=1)
+        obs = self.cube_manipulator.heuristic_grasp_approach(obs)
         return obs
 
 
@@ -306,7 +377,15 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         return obs
 
     def reset(self):
+        print('reset is called')
         obs = self.env.reset()
+        self.env.register_custom_log('init_cube_pos', obs['object_position'])
+        self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
+        self.env.register_custom_log('goal_pos', obs['goal_object_position'])
+        self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
+        print('init_cube_pos', obs['object_position'])
+        print('init_cube_ori', obs['object_orientation'])
+        self.env.save_custom_logs()
         init_cube_manip = self._choose_init_cube_manip(obs)
 
         # flip the cube
@@ -417,14 +496,14 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
     def _instantiate_planning_fc_policy(self, obs):
         from code.fc_planned_motion import PlanningAndForceControlPolicy
         planning_fc_policy = PlanningAndForceControlPolicy(
-            self.env, obs, self.fc_policy, action_repeat=self.action_repeat,
+            self.env, obs, self.fc_policy,
             align_goal_ori=self.align_goal_ori, use_rrt=self.use_rrt,
             use_incremental_rrt=self.use_incremental_rrt
         )
         return planning_fc_policy
 
-
     def _grasp_approach(self, obs):
+<<<<<<< HEAD
         from code.utils import repeat, ease_out
         action_seq = self.cube_manipulator.get_grasp_approach_actions(
             obs,
@@ -437,6 +516,18 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
 
         act_seq = ease_out(action_seq, in_rep=3 , out_rep=8 )
         obs = self.cube_manipulator._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
+=======
+        # obs = self.cube_manipulator.grasp_approach(
+        #     obs,
+        #     cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
+        #     cube_pose=self.planning_fc_policy.get_init_cube_pose(),
+        #     margin_coef=2.0,
+        #     n_trials=1)
+        obs = self.cube_manipulator.heuristic_grasp_approach(
+            obs,
+            cube_tip_positions=self.planning_fc_policy.get_cube_tip_pos()
+        )
+>>>>>>> takumas-branch
         return obs
 
     def _tighten_grasp(self, obs, grasp_force=0.8):
@@ -460,6 +551,7 @@ class PyBulletClearGUIWrapper(gym.Wrapper):
         p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=0, cameraPitch=-40, cameraTargetPosition=[0,0,0])
         return obs
 
+<<<<<<< HEAD
 class RandomizedEnvWrapper(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -557,3 +649,76 @@ class RandomizedEnvWrapper(gym.Wrapper):
                 raise(ValueError)
             
         return ret_dic
+=======
+class AlignedInitCubeWrapper(gym.ObservationWrapper):
+    '''
+    The scripted cube-flipping assumes that the z-face of the initial cube is always facing up.
+    It's not always the case in the real-robot environment.
+    To fix the issue, this wrapper converts the orientation
+    '''
+    def __init__(self, env):
+        super().__init__(env)
+        self.env = env
+        self.rot = None
+        self.visuals = []
+
+    def reset(self, **kwargs):
+        from code.utils import VisualCubeOrientation, VisualMarkers
+        obs = self.env.reset()
+        init_cube_ori = obs['object_orientation']
+        # self.org_vis = VisualCubeOrientation(obs['object_position'], init_cube_ori)
+        # self.vis = VisualCubeOrientation(obs['object_position'] + 0.05, init_cube_ori)
+        # self.visuals.append(
+        #     VisualCubeOrientation(obs['object_position'], init_cube_ori)
+        # )
+        # R_cube_to_base = Transform(np.zeros(3), init_cube_ori)
+        # base_z = R_cube_to_base(np.array([0, 0, 1]))
+        base_z = np.array([0, 0, 1])
+        rot_cube_to_base = R.from_quat(init_cube_ori)
+
+        # an even permutation forms a valid rotation matrice.
+        # tmp = 0
+        # marker = VisualMarkers()
+        rotations = [R.from_euler('x', i * 90, degrees=True) for i in range(4)]
+        rotations += [R.from_euler('y', i * 90, degrees=True) for i in range(4)]
+        # permutations = [R.from_matrix(np.eye(3)[:, perm]) for perm in ([0, 1, 2], [1, 2, 0], [2, 0, 1])]
+        # flip_around_x = [R.from_matrix(np.eye(3)), R.from_euler('x', 180, degrees=True)]
+        # rotations = [flip_rot * perm_rot for flip_rot in flip_around_x for perm_rot in permutations]
+        for rotation in rotations:
+            # rot_base_z = rotation.apply(base_z)
+            rot_base_z = (rot_cube_to_base * rotation).apply(base_z)
+            # marker.add(rot_base_z * 0.05, color=(1, 0, 0, 0.5))
+
+            # tmp += 0.03
+            # self.visuals.append(
+            #     VisualCubeOrientation(obs['object_position'] + tmp, (R.from_quat(init_cube_ori) * rotation).as_quat())
+            # )
+
+            print('============== rot_base_z =================')
+            print(rot_base_z)
+            if rot_base_z[2] > 0.7:
+                self.rot = rotation
+                break
+
+        if self.rot is None:
+            raise RuntimeError('something is wrong with the initial cube orientation')
+
+        # self.visuals.append(
+        #     VisualCubeOrientation(obs['object_position'] + 0.1, self._rotate(init_cube_ori))
+        # )
+        print('============== rotation matrix =================')
+        self.goal_ori = self._rotate(obs['goal_object_orientation'])
+        print(self.rot)
+
+        return self.observation(obs)
+
+    def _rotate(self, cube_quat):
+        return (R.from_quat(cube_quat) * self.rot).as_quat()
+
+    def observation(self, obs):
+        # self.org_vis.set_state(obs['object_position'], obs['object_orientation'])
+        obs['object_orientation'] = self._rotate(obs['object_orientation'])
+        obs['goal_object_orientation'] = self.goal_ori
+        # self.vis.set_state(obs['object_position'] + 0.05, obs['object_orientation'])
+        return obs
+>>>>>>> takumas-branch

@@ -17,11 +17,12 @@ from code.save_video import merge_videos
 from code.utils import set_seed, action_type_to, repeat
 import argparse
 import functools
-from code.const import MU, VIRTUAL_CUBE_HALFWIDTH
+from code.const import MU, VIRTUAL_CUBE_HALFWIDTH, CUBE_WIDTH
 from collections import namedtuple
+import copy
 
 class PlanningAndForceControlPolicy:
-    def __init__(self, env, obs, fc_policy, action_repeat=2, align_goal_ori=True,
+    def __init__(self, env, obs, fc_policy, action_repeat=2 * 2, align_goal_ori=True,
                  use_rrt=False, use_incremental_rrt=False, constants=None):
         if constants is None:
             constants = self._get_default_constants()
@@ -32,7 +33,16 @@ class PlanningAndForceControlPolicy:
             goal_ori = obs['goal_object_orientation']
         else:
             goal_ori = obs['object_orientation']
-        path = self.planner.plan(obs, obs['goal_object_position'], goal_ori,
+        aligned_obs = copy.deepcopy(obs)
+        aligned_obs['object_position'][2] = CUBE_WIDTH / 2
+        env.register_custom_log('grasp_target_cube_pose',
+                                {
+                                    'position': aligned_obs['object_position'],
+                                    'orientation': aligned_obs['object_orientation']
+                                })
+        print('PlanningAndForceControlPolicy is instantiated')
+        env.save_custom_logs()
+        path = self.planner.plan(aligned_obs, obs['goal_object_position'], goal_ori,
                                  retry_grasp=10, mu=constants.mu,
                                  cube_halfwidth=constants.halfwidth,
                                  use_rrt=use_rrt,

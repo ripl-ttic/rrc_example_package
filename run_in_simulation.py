@@ -13,10 +13,11 @@ import logging
 import pathlib
 import sys
 import shutil
+from shutil import ignore_patterns
 
 
 # episode_length = 2 * 60 * 1000
-episode_length = 2 * 10 * 1000
+episode_length = 1 * 60 * 1000
 
 
 class LocalExecutionConfig:
@@ -119,7 +120,7 @@ class SubmissionRunner:
                 "Getting user code from local repository %s",
                 self.config.git_repo,
             )
-            shutil.copytree(self.config.git_repo, "usercode")
+            shutil.copytree(self.config.git_repo, "usercode", ignore=ignore_patterns("log-*", "*.sif"), ignore_dangling_symlinks=True)
             self.git_revision = None
             return
         logging.info(
@@ -312,7 +313,7 @@ class SubmissionRunner:
 
         # set DISPLAY env var
         env = os.environ.copy()
-        env["SINGULARITYENV_DISPLAY"] = ":0"
+        env["SINGULARITYENV_DISPLAY"] = env["DISPLAY"]
         logging.info("Start backend")
         logging.debug(" ".join(run_backend_cmd))
         self.backend_process = subprocess.Popen(
@@ -396,7 +397,6 @@ class SubmissionRunner:
 
         # binding full /dev as only binding /dev/shm does not work with --contain
         exec_cmd = (
-            "python3 -m pip install -e /ws/src/usercode;"
             ". /setup.bash;"
             ". /ws/devel/setup.bash;"
             "/ws/src/usercode/run {:d} {!r}"
@@ -420,7 +420,7 @@ class SubmissionRunner:
             # main one terminates (probably same method as for backend should be used).
             # set DISPLAY env var
             env = os.environ.copy()
-            env["SINGULARITYENV_DISPLAY"] = ":0"
+            env["SINGULARITYENV_DISPLAY"] = env["DISPLAY"]
 
             proc = subprocess.run(
                 run_user_cmd,

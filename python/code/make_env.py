@@ -63,6 +63,8 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
     env.seed(seed=rank)
     env.action_space.seed(seed=rank)
     env = wrappers.NewToOldObsWrapper(env)
+    env = wrappers.InitStayHoldWrapper(env)
+    env = wrappers.AlignedInitCubeWrapper(env)
     if visualization:
         env = wrappers.PyBulletClearGUIWrapper(env)
     if monitor:

@@ -2,14 +2,15 @@
 from code.env.cube_env import ActionType
 from code.fc_force_control import ForceControlPolicy, Viz, grasp_force_control
 from code.grasp_sampling import GraspSampler
-from pybullet_planning import plan_joint_motion
+from pybullet_planning import plan_joint_motion, plan_direct_joint_motion
 from code.const import *
 from collections import namedtuple
-from code.utils import action_type_to, apply_transform, repeat, frameskip_to
+from code.utils import action_type_to, apply_transform, repeat, frameskip_to, IKUtils, assign_positions_to_fingers
 from scipy.spatial.transform import Rotation as R
 import functools
 import numpy as np
 from code.align_rotation import project_cube_xy_plane, pitch_rotation_times, calc_pitching_cube_tip_position, pitch_rotation_axis_and_angle, align_z, pinocchio_solve_ik, sort_map_positions_to_fingers
+from code.grasping import Transform
 
 class CubeManipulator:
     def __init__(self, env):
@@ -30,7 +31,8 @@ class CubeManipulator:
     def move_to_target(self, obs, target_pos, target_ori, force_control=True, skip_planned_motions=False, avoid_top=False, flipping=False):
         # move to grasp pose
         print('approach to grasp pose...')
-        obs = self.grasp_approach(obs, avoid_top=avoid_top)
+        # obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
+        obs = self.heuristic_grasp_approach(obs)
 
         # tighten the grasp
         print('tightening the grasp...')
@@ -51,7 +53,8 @@ class CubeManipulator:
         else:
             #rotating not implemented yet
             print('moving to the goal...')
-            obs = self.moving_cube(obs, target_pos, num_repeat=40)
+            num_repeat = 4 if self.env.simulation else 4 * 4
+            obs = self.moving_cube(obs, target_pos, num_repeat=num_repeat)
 
         return obs
 
@@ -63,7 +66,9 @@ class CubeManipulator:
         #centering cube
         if not cube_centered(obs):
             obs = self.move_to_center(obs, force_control=False)
-            obs = self.holds_until_everything_stops(obs)
+            # obs = self.holds_until_everything_stops(obs)
+            num_steps = 10 if self.env.simulation else 100
+            obs = self.wait_for(obs, num_steps=num_steps)
 
         #stop when cube is already aligned
         if cube_rotation_aligned(obs):
@@ -72,11 +77,15 @@ class CubeManipulator:
 
 
         obs, cube_tip_positions = self.align_pitch(obs)
-        obs = self.holds_until_everything_stops(obs)
+        # obs = self.holds_until_everything_stops(obs)
+        num_steps = 10 if self.env.simulation else 100
+        obs = self.wait_for(obs, num_steps=num_steps)
 
         if yaw_planning:
             obs = self.align_yaw(obs, planning=yaw_planning)
-            obs = self.holds_until_everything_stops(obs)
+            # obs = self.holds_until_everything_stops(obs)
+            num_steps = 10 if self.env.simulation else 100
+            obs = self.wait_for(obs, num_steps=num_steps)
         else:
             projected_goal_orientation = project_cube_xy_plane(obs['goal_object_orientation'])
             z_aligned_goal_orientation, pitch_axis, pitch_angle = align_z(obs['object_orientation'], projected_goal_orientation)
@@ -85,13 +94,14 @@ class CubeManipulator:
                                  cube_tip_positions=cube_tip_positions,
                                  pitch_axis=pitch_axis,
                                  pitch_angle=pitch_angle)
-            obs = self.holds_until_everything_stops(obs)
+            # obs = self.holds_until_everything_stops(obs)
 
         step_end = self.env.unwrapped.step_count
         print("total steps for aligning: {}".format(step_end - step_start))
         return obs
 
     def align_pitch(self, obs):
+        print('running align_pitch')
         projected_goal_orientation = project_cube_xy_plane(obs['goal_object_orientation'])
         z_aligned_goal_orientation, pitch_axis, pitch_angle = align_z(obs['object_orientation'], projected_goal_orientation)
 
@@ -102,11 +112,26 @@ class CubeManipulator:
 
         for i in range(pitch_times):
             print("reaching grasp position...")
-            obs, cube_tip_positions, suc = self.reach_tip_positions(obs, cube_tip_positions)
-            if not suc:
-                break #stop before mess up environment
+            # obs, cube_tip_positions, suc = self.reach_tip_positions(obs, cube_tip_positions)
+            # if not suc:
+            #     break #stop before mess up environment
+
+            # sort tip positions
+            base_tip_pos_ = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+            base_tip_pos = apply_transform(obs['object_position'], obs['object_orientation'], cube_tip_positions)
+            print('cube_tip_pos', cube_tip_positions)
+            print('base_tip_pos_', base_tip_pos_)
+            print('base_tip_pos', base_tip_pos)
+            self.env.register_custom_log('pitch_grasp_positions', base_tip_pos)
+            self.env.save_custom_logs()
+            _, inds = assign_positions_to_fingers(base_tip_pos, fk=self.env.platform.forward_kinematics)
+            cube_tip_positions = cube_tip_positions[inds, :]
+
+
+            obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             print("pitching cube...")
-            obs = self.pitching_cube(obs, cube_tip_positions, num_repeat=20, final_pitch=(i == pitch_times - 1))
+            num_repeat = 5 if self.env.simulation else 5 * 10
+            obs = self.pitching_cube(obs, cube_tip_positions, num_repeat=num_repeat, final_pitch=(i == pitch_times - 1))
 
             rotated_axis = pitch_axis
             rotated_angle = np.sign(pitch_angle) * np.pi /2
@@ -115,6 +140,7 @@ class CubeManipulator:
         return obs, cube_tip_positions
 
     def align_yaw(self, obs, planning=True, cube_tip_positions=None, pitch_axis=None, pitch_angle=None):
+        print('running align_yaw')
 
         rotated_axis = None
         step_yaw_angle = np.pi/3
@@ -125,7 +151,17 @@ class CubeManipulator:
             print("reaching grasp position...")
             if planning:
                 cube_tip_positions, cube_pose = self.calc_yaw_tip_positions(obs)
-                obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=3, out_rep=8, margin_coef=1.5, flipping=False)
+                # in_rep = 3 if self.env.simulation else 3 * 4
+                # out_rep = 8 if self.env.simulation else 8 * 4
+                # obs = self.grasp_approach(obs, cube_tip_pos=cube_tip_positions, cube_pose=cube_pose, in_rep=in_rep, out_rep=out_rep, margin_coef=1.5)
+                base_tip_pos_ = Transform(obs['object_position'], obs['object_orientation'])(cube_tip_positions)
+                base_tip_pos = apply_transform(obs['object_position'], obs['object_orientation'], cube_tip_positions)
+                print('cube_tip_pos', cube_tip_positions)
+                print('base_tip_pos_', base_tip_pos_)
+                print('base_tip_pos', base_tip_pos)
+                self.env.register_custom_log('yaw_grasp_positions', base_tip_pos)
+                self.env.save_custom_logs()
+                obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             else:
                 assert(cube_tip_positions is not None and pitch_axis is not None and pitch_angle is not None)
                 obs, cube_tip_positions, suc = self.reach_tip_positions(obs, cube_tip_positions)
@@ -134,8 +170,11 @@ class CubeManipulator:
 
             print("yawing cube...")
             #self._run_planned_actions(obs, path.joint_conf, ActionType.POSITION)
-            obs, angle = self.yawing_cube(obs, cube_tip_positions, step_angle=step_yaw_angle,num_repeat=20)
-            obs = self.holds_until_everything_stops(obs)
+            num_repeat = 2 if self.env.simulation else 2 * 4
+            obs, angle = self.yawing_cube(obs, cube_tip_positions, step_angle=step_yaw_angle, num_repeat=num_repeat)
+            # obs = self.holds_until_everything_stops(obs)
+            num_steps = 10 if self.env.simulation else 100
+            obs = self.wait_for(obs, num_steps=num_steps)
 
             if planning:
                 pass
@@ -168,6 +207,7 @@ class CubeManipulator:
 
     def reach_tip_positions(self, obs, cube_tip_positions):
         from code.utils import repeat, ease_out
+        from code import utils
         act_seq, cube_tip_positions = self.motion_planning(cube_tip_positions, obs)
         suc = False
         if act_seq is None:
@@ -175,16 +215,99 @@ class CubeManipulator:
             return obs, cube_tip_positions, suc
         else:
             suc = True
-        act_seq = ease_out(act_seq, in_rep=3, out_rep=6)
-        obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION)
+
+        finer_act_seq = []
+        for i in range(len(act_seq) - 1):
+            finer_act_seq += utils.complete_joint_configs(start=act_seq[i], goal=act_seq[i+1])
+
+        in_rep = 3 if self.env.simulation else 3 * 4
+        out_rep = 6 if self.env.simulation else 6 * 4
+        finer_act_seq = ease_out(finer_act_seq, in_rep=in_rep, out_rep=out_rep)
+        num_repeat = 40 if self.env.simulation else 400
+        finer_act_seq += repeat([finer_act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
+        obs = self._run_planned_actions(obs, finer_act_seq, ActionType.POSITION)
         return obs, cube_tip_positions, suc
 
-    def grasp_approach(self, obs, avoid_top=False, in_rep=3, out_rep=8, **kwargs):
+    def grasp_approach(self, obs, avoid_top=False, in_rep=None, out_rep=None, **kwargs):
         from code.utils import repeat, ease_out
+        from code import utils
+        if in_rep is None:
+            in_rep = 3 if self.env.simulation else 3 * 4
+        if out_rep is None:
+            out_rep = 8 if self.env.simulation else 8 * 4
         act_seq = self.get_grasp_approach_actions(obs, avoid_top=avoid_top, **kwargs)
-        act_seq = ease_out(act_seq, in_rep=in_rep, out_rep=out_rep)
+
+        finer_act_seq = []
+        for i in range(len(act_seq) - 1):
+            finer_act_seq += utils.complete_joint_configs(start=act_seq[i], goal=act_seq[i+1])
+
+        finer_act_seq = ease_out(finer_act_seq, in_rep=in_rep, out_rep=out_rep)
+        num_repeat = 40 if self.env.simulation else 400
+        finer_act_seq += repeat([finer_act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
+        obs = self._run_planned_actions(obs, finer_act_seq, ActionType.POSITION, frameskip=1)
+        return obs
+
+    def heuristic_grasp_approach(self, obs, cube_tip_positions=None):
+        from code.utils import repeat
+        from code.action_sequences import ScriptedActions
+
+        if cube_tip_positions is None:
+            # sample a force-closure grasp
+            sample_fc_grasp = GraspSampler(self.env, obs, mu=MU)
+            print('init_joint_conf is None --> sampling grasp points ad hoc...')
+            cube_tip_positions, tip_pos, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
+                                                                      shrink_region=0.2)
+        action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
+        pregrasp_joint_conf, pregrasp_tip_pos = self.get_safe_pregrasp(cube_tip_positions, obs)
+
+        # if the pregrasp_joint_conf is achievable with a direct motion, just do that
+        # otherwise, temporary move the fingertips above the cube, and then move the tips to the target positions.
+        planned_motion = plan_direct_joint_motion(**self._get_grasp_conf(pregrasp_joint_conf, config_type='cautious'))
+        if planned_motion is not None:
+            num_repeats = 4 if self.env.simulation else 4 * 4
+            planned_motion = repeat(planned_motion, num_repeats)
+            obs = self._run_planned_actions(obs, planned_motion, ActionType.POSITION, frameskip=1)
+        else:
+            # NOTE: This moves the finger tips above the cube first.
+            action_sequence.add_raise_tips(obs)
+            action_sequence.add_heuristic_pregrasp(obs, pregrasp_tip_pos=pregrasp_tip_pos)
+        action_sequence.add_grasp(obs)
+        act_seq = self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs)
+
+        num_repeat = 8 if self.env.simulation else 8 * 4
+        act_seq = repeat(act_seq, num_repeat)
+        num_repeat = 40 if self.env.simulation else 400
+        act_seq += repeat([act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
+
         obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
         return obs
+
+    def get_safe_pregrasp(self, cube_tip_positions, obs, candidate_margins=[1.1, 1.3, 1.5, 1.8, 2.0]):
+        pregrasp_tip_pos = []
+        pregrasp_jconfs = []
+        ik_utils = IKUtils(self.env)
+        T_cube_to_base = Transform(obs['object_position'], obs['object_orientation'])
+        for margin in candidate_margins:
+            tip_pos = T_cube_to_base(cube_tip_positions * margin)
+            tip_pos_ = apply_transform(obs['object_position'], obs['object_orientation'], cube_tip_positions * margin)
+            print('margin', margin)
+            print('safe pregrasp with Transform', tip_pos)
+            print('safe pregrasp with apply_transform', tip_pos_)
+            qs = ik_utils.sample_no_collision_ik(tip_pos, sort_tips=False)
+            if len(qs) > 0:
+                pregrasp_tip_pos.append(tip_pos)
+                pregrasp_jconfs.append(qs[0])
+                print('candidate margin coef {}: safe'.format(margin))
+            else:
+                print('candidate margin coef {}: no ik solution found'.format(margin))
+
+
+        if len(pregrasp_tip_pos) == 0:
+            print('warning: no safe pregrasp pose with a margin')
+            pregrasp_tip_pos = [T_cube_to_base(cube_tip_positions * candidate_margins[0])]
+            pregrasp_jconfs = [ik_utils.sample_ik(pregrasp_tip_pos, sort_tips=False)[0]]
+
+        return pregrasp_jconfs[-1], pregrasp_tip_pos[-1]
 
     def pitching_cube(self, obs, cube_tip_positions, num_repeat=30, final_pitch=False):
         act_seq = self.get_actions_pitching_cube(cube_tip_positions, obs, final_pitch)
@@ -229,7 +352,7 @@ class CubeManipulator:
             cube_id = self.env.platform.cube.block
 
             for i in range(30):
-                planned_motion = plan_joint_motion(**self._get_grasp_conf(target_joint_angles, flipping=True))
+                planned_motion = plan_joint_motion(**self._get_grasp_conf(target_joint_angles, config_type='flipping'))
                 #reset the robot position that pybullet-planning changed
                 self.env.platform.simfinger.reset_finger_positions_and_velocities(obs['robot_position'], obs['robot_velocity'])
                 if planned_motion is not None:
@@ -243,7 +366,7 @@ class CubeManipulator:
 
     def get_grasp_approach_actions(self, obs, cube_tip_pos=None, cube_pose=None,
                                    margin_coef=1.3, n_trials=100, avoid_top=False,
-                                   flipping=False, **kwargs):
+                                   config_type=None, **kwargs):
         '''return grasp action sequence'''
 
         from code.wholebody_planning import disable_tip_collisions
@@ -256,39 +379,85 @@ class CubeManipulator:
         org_joint_vel = obs['robot_velocity']
         init_joint_conf = None
         # disabled_collisions = disable_tip_collisions(self.env)
+        assert margin_coef >= 1.0
 
-
+        grasp_action_seq = []
         if cube_tip_pos is not None:
-            from code.grasping import Transform
-            from code.utils import IKUtils
-            m_cube_tip_pos = cube_tip_pos * margin_coef  # add some margin
+            if np.linalg.norm(obs['object_position'][:2]) > ARENA_RADIUS * 2/3:
+                safe_margin_coef = 1.3
+                if margin_coef >= safe_margin_coef:
+                    print('object is close to the edge. Overwriting margin_coef from {} to {}'.format(margin_coef, safe_margin_coef))
+                    margin_coef = safe_margin_coef
+            m_cube_tip_pos = cube_tip_pos * margin_coef
+
             cube_pos = cube_pose[:3]
             cube_quat = p.getQuaternionFromEuler(cube_pose[3:])
-            m_tip_pos = Transform(cube_pos, cube_quat)(m_cube_tip_pos)
-
             tip_pos = Transform(cube_pos, cube_quat)(cube_tip_pos)
+            m_tip_pos = Transform(cube_pos, cube_quat)(m_cube_tip_pos)
+            m_tip_pos[:, 2] = tip_pos[:, 2]  # align height (z-axis)
+            self.env.register_custom_log('pregrasp_tip_positions', m_tip_pos)
+            print('saving pregrasp_tip_positions...')
+            self.env.save_custom_logs()
             if self.vis_markers is not None:
                 self.vis_markers.remove()
                 self.vis_markers.add(tip_pos, color=TRANSLU_BLUE)
                 self.vis_markers.add(m_tip_pos, color=TRANSLU_RED)
 
             ik_utils = IKUtils(self.env)
+            print('tip_pos', tip_pos)
+            print('m_tip_pos', m_tip_pos)
             jconfs = ik_utils.sample_no_collision_ik(m_tip_pos, sort_tips=False)
             self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
             if len(jconfs) == 0:
+                print('The given tip position is not feasible')
+                print('saving failure_target_tip_positions')
+                self.env.register_custom_log('failure_target_tip_positions', m_tip_pos)
+                self.env.save_custom_logs()
                 raise ValueError('The given tip position is not feasible')
 
             init_joint_conf = jconfs[0]
+
+            from code.utils import complete_keypoints
+            keypoints = complete_keypoints(start=m_tip_pos, goal=tip_pos)
+            for keypoint in keypoints:
+                if self.vis_markers is not None:
+                    self.vis_markers.add(keypoint, color=TRANSLU_YELLOW)
+                jconfs = ik_utils.sample_ik(keypoint, sort_tips=False)
+                if len(jconfs) == 0:
+                    print('warning: IK failed on grasp motion')
+                    continue
+                grasp_action_seq.append(jconfs[0])
+            # unit_length = 0.008
+            # inward_vector = tip_pos - m_tip_pos
+            # max_length_to_surface = max(np.linalg.norm(inward_vector, axis=1))
+            # num_keypoints = int(max_length_to_surface / unit_length)
+            # print('margin_coef', margin_coef)
+            # print('inward_vector', inward_vector)
+            # print('max_length_to_surface', max_length_to_surface)
+            # print('num_keypoints', num_keypoints)
+            # print('after cube_tip_pos', cube_tip_pos)
+            # print('after m_cube_tip_pos', m_cube_tip_pos)
+            # for i in range(num_keypoints):
+            #     tip_keypoint = m_tip_pos + inward_vector * i / num_keypoints
+            #     if self.vis_markers is not None:
+            #         self.vis_markers.add(tip_keypoint, color=TRANSLU_YELLOW)
+            #     jconfs = ik_utils.sample_ik(tip_keypoint, sort_tips=False)
+            #     # print(jconfs)
+            #     if len(jconfs) == 0:
+            #         print('warning: IK failed on grasp motion')
+            #         continue
+            #     grasp_action_seq.append(jconfs[0])
+
 
         for i in range(n_trials):
             if init_joint_conf is None:
                 sample_fc_grasp = GraspSampler(self.env, obs, mu=MU)
                 print('init_joint_conf is None --> sampling grasp points ad hoc...')
-                _, _, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
+                _, tip_pos, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
                                                    shrink_region=0.2)
             else:
                 joint_conf = init_joint_conf
-            action_seq = plan_joint_motion(**self._get_grasp_conf(joint_conf, flipping=flipping))
+            action_seq = plan_joint_motion(**self._get_grasp_conf(joint_conf, config_type=config_type))
 
             if action_seq is not None:
                 break
@@ -296,7 +465,17 @@ class CubeManipulator:
                 print('grasp approach sequence is None. Retrying...')
         if action_seq is None:
             self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
+            print('grasp_approach failed. No path to the grasp is found.')
+            print('saving failure_target_tip_positions')
+            target_tip_pos = tip_pos if init_joint_conf is None else m_tip_pos
+            self.env.register_custom_log('failure_target_tip_positions', target_tip_pos)
+            self.env.save_custom_logs()
             raise ValueError('grasp_approach failed. No path to the grasp is found.')
+
+        # TRUE when cube_tip_pos is specified
+        if grasp_action_seq:
+            print('grasp action sequence is added')
+            action_seq += grasp_action_seq  # Add grasp action sequece
 
         # show action sequence
         # print('VISUALIZING ACTION SEQUENCE...')
@@ -307,16 +486,47 @@ class CubeManipulator:
         self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
         return action_seq
 
-    def _get_grasp_conf(self, joint_conf, flipping):
+    def _get_grasp_conf(self, joint_conf, config_type=None):
         MaxDist = namedtuple('MaxDist', ['dist', 'body_link_pairs'])
         cube_id = self.env.platform.cube.block
         workspace_id = 0
-        if flipping:
+        default_config = {
+            'body': self.env.platform.simfinger.finger_id,
+            'joints': self.env.platform.simfinger.pybullet_link_indices,
+            'end_conf': joint_conf,
+            'obstacles': [cube_id, 0],
+            'self_collisions': True,
+            'ignore_collision_steps': 6,
+            'iterations': 2000,
+            'max_distance': -COLLISION_TOLERANCE,
+            'max_dist_on': [
+                MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
+                MaxDist(dist=0.02, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
+            ],
+            'diagnosis': False,
+            'smooth': 1200,
+        }
+        if config_type is None:
+            config = default_config
+        elif config_type == 'move_to_target':
+            config = default_config
+            config['max_dist_on'] = [
+                MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
+                MaxDist(dist=0.03, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
+            ]
+        elif config_type == 'cautious':
+            config = default_config
+            config['max_dist_on'] = [
+                MaxDist(dist=-1e-03, body_link_pairs=self._create_body_fingerlink_pairs(workspace_id)),
+                MaxDist(dist=0.03, body_link_pairs=self._create_body_fingerlink_pairs(cube_id))
+            ]
+        elif config_type == 'flipping':
             config = {
                 'body': self.env.platform.simfinger.finger_id,
                 'joints': self.env.platform.simfinger.pybullet_link_indices,
                 'end_conf': joint_conf,
                 'self_collisions':True,
+                'ignore_collision_steps': 6,
                 'iterations': 2000,
                 'obstacles': [cube_id, 0],
                 'max_distance': 0.01,
@@ -343,6 +553,7 @@ class CubeManipulator:
         return config
 
     def get_actions_moving_cube(self, obs, target_pos):
+        from code import utils
         tip_positions_list = []
 
         cube_tip_positions = apply_transform([0,0,0], R.from_quat(obs['object_orientation']).inv().as_quat(), obs['robot_tip_positions'] - obs['object_position'])
@@ -356,29 +567,30 @@ class CubeManipulator:
         position[2] = 0
         dist = np.linalg.norm(position)
 
-        if dist > 0.1:
-            #waypoint
-            position = obs['object_position']
-            position[0] = (position[0] + target_pos[0]) /2
-            position[1] = (position[1] + target_pos[1]) /2
-            target_tip_positions = apply_transform(position,
-                                                obs['object_orientation'],
-                                                grasp_target_cube_positions)
-            tip_positions_list.append(target_tip_positions)
+        # if dist > 0.1:
+        #     #waypoint
+        #     position = np.copy(obs['object_position'])
+        #     position[0] = (position[0] + target_pos[0]) /2
+        #     position[1] = (position[1] + target_pos[1]) /2
+        #     target_tip_positions = apply_transform(position,
+        #                                         obs['object_orientation'],
+        #                                         grasp_target_cube_positions)
+        #     tip_positions_list.append(target_tip_positions)
 
         #move
-        position = obs['object_position']
+        position = np.copy(obs['object_position'])
         position[0] = target_pos[0]
         position[1] = target_pos[1]
         target_tip_positions = apply_transform(position,
-                                            obs['object_orientation'],
-                                            grasp_target_cube_positions)
-        tip_positions_list.append(target_tip_positions)
+                                               obs['object_orientation'],
+                                               grasp_target_cube_positions)
+
+        tip_positions_list += utils.complete_keypoints(grasp_target_tip_positions, target_tip_positions, unit_length=0.008)
 
         #release
         grasp_target_cube_positions = cube_tip_positions * 2.0
         grasp_target_tip_positions = apply_transform(position+np.array([0, 0, 0.02]), obs['object_orientation'], grasp_target_cube_positions)
-        tip_positions_list.append(grasp_target_tip_positions)
+        tip_positions_list += utils.complete_keypoints(tip_positions_list[-1], grasp_target_tip_positions, unit_length=0.008)
 
         return self.tip_positions_to_actions(tip_positions_list, obs)
 
@@ -387,12 +599,12 @@ class CubeManipulator:
         '''assume cube_tip_positions are on the centers of three faces'''
 
         from code.action_sequences import ScriptedActions
-        action_sequence = ScriptedActions(cube_tip_positions)
+        action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
 
         action_sequence.add_grasp(obs, coef=0.6)
         action_sequence.add_liftup(obs, coef=0.6)
         rotate_axis, rotate_angle = pitch_rotation_axis_and_angle(cube_tip_positions)
-        action_sequence.add_pitch_rotation(obs, rotate_axis, rotate_angle, coef=0.6, vis_markers=self.vis_markers)
+        action_sequence.add_pitch_rotation(obs, rotate_axis, rotate_angle, coef=0.6)
         action_sequence.add_place_cube(obs, coef=0.6)
 
         if final_pitch:
@@ -416,7 +628,7 @@ class CubeManipulator:
                     apply_yaw_rotation = False
 
             if apply_yaw_rotation:
-                action_sequence.add_yaw_rotation(dummy_obs, vis_markers=self.vis_markers)
+                action_sequence.add_yaw_rotation(dummy_obs)
 
         action_sequence.add_release(obs)
         return self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs)
@@ -425,10 +637,10 @@ class CubeManipulator:
         '''return list of actions that achieve grasp -> yaw -> release'''
 
         from code.action_sequences import ScriptedActions
-        action_sequence = ScriptedActions(cube_tip_positions)
+        action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
 
         action_sequence.add_grasp(obs)
-        angle_clipped = action_sequence.add_yaw_rotation(obs, step_angle=step_angle, vis_markers=self.vis_markers)
+        angle_clipped = action_sequence.add_yaw_rotation(obs, step_angle=step_angle)
         action_sequence.add_release(obs)
         return self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs), angle_clipped
 
@@ -501,6 +713,17 @@ class CubeManipulator:
                     self._maybe_wait()
         return obs
 
+    def wait_for(self, obs, num_steps=1000):
+        step = 0
+        done = False
+        init_joint_conf = obs['robot_position']
+        with frameskip_to(1, self.env):
+            with action_type_to(ActionType.POSITION, self.env):
+                while not done and step <= num_steps:
+                    obs, _, _, _ = self.env.step(init_joint_conf)
+                    step += 1
+        return obs
+
     def _move_joints_toward_home(self, obs, steps=10):
         '''move joints toward the very initial configuration'''
         sleep = 0.02 if self.env.visualization else 0
@@ -567,7 +790,8 @@ class CubeManipulator:
                 try:
                     target_joint_conf.append(target_joint[3*i:3*(i+1)])
                 except TypeError:
-                    return actions
+                    print('Warning: IK solution not found (tip_positions_to_actions)')
+                    # return actions
             action = np.concatenate(target_joint_conf)
             actions.append(action)
 

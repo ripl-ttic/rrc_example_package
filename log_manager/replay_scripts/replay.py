@@ -24,6 +24,49 @@ def load_data(path):
     return data
 
 
+class SphereMarker:
+    def __init__(self, radius, position, color=(0, 1, 0, 0.5)):
+        """
+        Create a sphere marker for visualization
+
+        Args:
+            width (float): Length of one side of the cube.
+            position: Position (x, y, z)
+            orientation: Orientation as quaternion (x, y, z, w)
+            color: Color of the cube as a tuple (r, b, g, q)
+            """
+        self.shape_id = p.createVisualShape(
+            shapeType=p.GEOM_SPHERE,
+            radius=radius,
+            rgbaColor=color,
+        )
+        self.body_id = p.createMultiBody(
+            baseVisualShapeIndex=self.shape_id,
+            basePosition=position,
+            baseOrientation=[0, 0, 0, 1],
+        )
+
+    def set_state(self, position):
+        """Set pose of the marker.
+
+        Args:
+            position: Position (x, y, z)
+        """
+        orientation = [0, 0, 0, 1]
+        p.resetBasePositionAndOrientation(
+            self.body_id, position, orientation
+        )
+
+    def __del__(self):
+        """
+        Removes the visual object from the environment
+        """
+        # At this point it may be that pybullet was already shut down. To avoid
+        # an error, only remove the object if the simulation is still running.
+        if p.isConnected():
+            p.removeBody(self.body_id)
+
+
 class CubeDrawer:
     def __init__(self, logdir):
         calib_files = []
@@ -111,6 +154,7 @@ def get_goal(logdir):
 
 
 def main(logdir, video_path):
+    custom_log = load_data(os.path.join(logdir, 'user/custom_data'))
     goal = get_goal(logdir)
     data = get_synced_log_data(logdir)
     fps = len(data['t']) / (data['stamp'][-1] - data['stamp'][0])
@@ -123,6 +167,7 @@ def main(logdir, video_path):
         visualization=False,
         initial_object_pose=initial_object_pose,
     )
+    markers = []
 
     visual_objects.CubeMarker(
         width=0.065,
@@ -130,6 +175,56 @@ def main(logdir, video_path):
         orientation=goal['orientation'],
         physicsClientId=platform.simfinger._pybullet_client_id,
     )
+    if 'grasp_target_cube_pose' in custom_log:
+        markers.append(
+            visual_objects.CubeMarker(
+                width=0.065,
+                position=custom_log['grasp_target_cube_pose']['position'],
+                orientation=custom_log['grasp_target_cube_pose']['orientation'],
+                color=(0, 0, 1, 0.5),
+                physicsClientId=platform.simfinger._pybullet_client_id,
+            )
+        )
+    if 'pregrasp_tip_positions' in custom_log:
+        for tip_pos in custom_log['pregrasp_tip_positions']:
+            print(tip_pos)
+            markers.append(
+                SphereMarker(
+                    radius=0.015,
+                    position=tip_pos,
+                    color=(0, 1, 1, 0.5)
+                )
+            )
+    if 'failure_target_tip_positions' in custom_log:
+        for tip_pos in custom_log['failure_target_tip_positions']:
+            print(tip_pos)
+            markers.append(
+                SphereMarker(
+                    radius=0.015,
+                    position=tip_pos,
+                    color=(1, 0, 0, 0.5)
+                )
+            )
+    if 'pitch_grasp_positions' in custom_log:
+        for tip_pos in custom_log['pitch_grasp_positions']:
+            print(tip_pos)
+            markers.append(
+                SphereMarker(
+                    radius=0.015,
+                    position=tip_pos,
+                    color=(1, 1, 1, 0.5)
+                )
+            )
+    if 'yaw_grasp_positions' in custom_log:
+        for tip_pos in custom_log['yaw_grasp_positions']:
+            print(tip_pos)
+            markers.append(
+                SphereMarker(
+                    radius=0.015,
+                    position=tip_pos,
+                    color=(0, 0, 0, 0.5)
+                )
+            )
 
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
     p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=0, cameraPitch=-40, cameraTargetPosition=[0,0,0])
