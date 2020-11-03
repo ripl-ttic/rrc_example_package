@@ -245,7 +245,6 @@ class RealRobotCubeEnv(gym.GoalEnv):
             self._prev_step_report = self.step_count
 
         if is_done:
-            print('saving custom logs...')
             print('is_done is True. Episode terminates.')
             print('episode length', self.episode_length)
             print('step_count', self.step_count)
@@ -385,6 +384,7 @@ class RealRobotCubeEnv(gym.GoalEnv):
         self.custom_logs[name] = data
 
     def save_custom_logs(self):
+        print('saving custom logs...')
         if not os.path.isdir(CUSTOM_LOGDIR):
             print('{} does not exist. skip saving custom logs.'.format(CUSTOM_LOGDIR))
             return
