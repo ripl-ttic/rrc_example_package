@@ -149,8 +149,8 @@ class GraspSampler(object):
             points = points[inds, :]
             should_reject, q = self._reject(points)
             if not should_reject:
+                self.env.platform.simfinger.reset_finger_positions_and_velocities(self.q_init, self.v_init)  # TEMP: this line lacks somewhere in this class..
                 valid_grasps.append([points, tips, q])
-        self.env.platform.simfinger.reset_finger_positions_and_velocities(self.q_init, self.v_init)  # TEMP: this line lacks somewhere in this class..
         print(valid_grasps)
         return valid_grasps
 
