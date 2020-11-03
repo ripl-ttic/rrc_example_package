@@ -150,5 +150,4 @@ task2_eval_init = EvalEpisodesInitializer(difficulty=2)
 task3_eval_init = EvalEpisodesInitializer(difficulty=3)
 task4_eval_init = EvalEpisodesInitializer(difficulty=4)
 
-task4_small_rot_init = Task4SmallRotation()
 init_cube_rotated_init = InitCubeRotatedInitializer()
