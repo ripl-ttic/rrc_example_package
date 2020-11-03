@@ -131,7 +131,7 @@ def get_synced_log_data(logdir):
     obs = {'robot': [], 'cube': [], 'images': [], 't': [], 'desired_action': [],
            'stamp': []}
     ind = 0
-    for t in range(log.get_first_timeindex(), log.get_first_timeindex() + 20000):
+    for t in range(log.get_first_timeindex(), log.get_last_timeindex()):
         if 1000 * log.get_timestamp_ms(t) >= stamps[ind]:
             robot_observation = log.get_robot_observation(t)
             camera_observation = log.get_camera_observation(t)
@@ -193,6 +193,36 @@ def main(logdir, video_path):
                     radius=0.015,
                     position=tip_pos,
                     color=(0, 1, 1, 0.5)
+                )
+            )
+    if 'failure_target_tip_positions' in custom_log:
+        for tip_pos in custom_log['failure_target_tip_positions']:
+            print(tip_pos)
+            markers.append(
+                SphereMarker(
+                    radius=0.015,
+                    position=tip_pos,
+                    color=(1, 0, 0, 0.5)
+                )
+            )
+    if 'pitch_grasp_positions' in custom_log:
+        for tip_pos in custom_log['pitch_grasp_positions']:
+            print(tip_pos)
+            markers.append(
+                SphereMarker(
+                    radius=0.015,
+                    position=tip_pos,
+                    color=(1, 1, 1, 0.5)
+                )
+            )
+    if 'yaw_grasp_positions' in custom_log:
+        for tip_pos in custom_log['yaw_grasp_positions']:
+            print(tip_pos)
+            markers.append(
+                SphereMarker(
+                    radius=0.015,
+                    position=tip_pos,
+                    color=(0, 0, 0, 0.5)
                 )
             )
 
