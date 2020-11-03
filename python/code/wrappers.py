@@ -147,33 +147,10 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         assert self.env.action_type == ActionType.TORQUE
         self.action_space = TriFingerPlatform.spaces.robot_torque.gym
         spaces = TriFingerPlatform.spaces
-<<<<<<< HEAD
         ob_space = dict(self.observation_space.spaces)
         ob_space['base_action_torque'] = spaces.robot_torque.gym
         self.observation_space = gym.spaces.Dict(ob_space)
         self.observation_names.append("base_action_torque")
-=======
-        self.observation_space = gym.spaces.Dict(
-            {
-                "robot_position": spaces.robot_position.gym,
-                "robot_velocity": spaces.robot_velocity.gym,
-                "robot_tip_positions": gym.spaces.Box(
-                    low=np.array([spaces.object_position.low] * 3),
-                    high=np.array([spaces.object_position.high] * 3),
-                ),
-                "object_position": spaces.object_position.gym,
-                "object_orientation": spaces.object_orientation.gym,
-                "goal_object_position": spaces.object_position.gym,
-                "goal_object_orientation": spaces.object_orientation.gym,
-                "tip_force": gym.spaces.Box(
-                    low=np.zeros(3),
-                    high=np.ones(3),
-                ),
-                "torque_action": spaces.robot_torque.gym,
-            }
-        )
-        # self.observation_names.append("torque_action")
->>>>>>> takumas-branch
         from code.fc_force_control import ForceControlPolicy
         self.pi = ForceControlPolicy(self.env, apply_torques=apply_torques)
         self.cube_manipulator = CubeManipulator(env)
@@ -503,20 +480,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         return planning_fc_policy
 
     def _grasp_approach(self, obs):
-<<<<<<< HEAD
-        from code.utils import repeat, ease_out
-        action_seq = self.cube_manipulator.get_grasp_approach_actions(
-            obs,
-            cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
-            cube_pose=self.planning_fc_policy.get_init_cube_pose(),
-            margin_coef=1.3,
-            n_trials=1)
-        self.env.register_custom_log('grasp_motion', action_seq)
-        self.env.register_custom_log('grasp_tip_pos', self.planning_fc_policy.get_cube_tip_pos())
-
-        act_seq = ease_out(action_seq, in_rep=3 , out_rep=8 )
-        obs = self.cube_manipulator._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
-=======
         # obs = self.cube_manipulator.grasp_approach(
         #     obs,
         #     cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
@@ -527,7 +490,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
             obs,
             cube_tip_positions=self.planning_fc_policy.get_cube_tip_pos()
         )
->>>>>>> takumas-branch
         return obs
 
     def _tighten_grasp(self, obs, grasp_force=0.8):
@@ -551,7 +513,6 @@ class PyBulletClearGUIWrapper(gym.Wrapper):
         p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=0, cameraPitch=-40, cameraTargetPosition=[0,0,0])
         return obs
 
-<<<<<<< HEAD
 class RandomizedEnvWrapper(gym.Wrapper):
     def __init__(self, env, 
                  cube_rot_var=0.05, cube_pos_var=0.001, cube_randomize_step=3, cube_weight_scale=3, 
@@ -768,7 +729,8 @@ class RandomizedEnvWrapper(gym.Wrapper):
                 raise(ValueError)
             
         return ret_dic
-=======
+
+
 class AlignedInitCubeWrapper(gym.ObservationWrapper):
     '''
     The scripted cube-flipping assumes that the z-face of the initial cube is always facing up.
@@ -840,4 +802,3 @@ class AlignedInitCubeWrapper(gym.ObservationWrapper):
         obs['goal_object_orientation'] = self.goal_ori
         # self.vis.set_state(obs['object_position'] + 0.05, obs['object_orientation'])
         return obs
->>>>>>> takumas-branch
