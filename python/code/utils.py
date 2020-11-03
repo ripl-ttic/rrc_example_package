@@ -632,7 +632,7 @@ class AssertNoStateChanges:
         np.testing.assert_array_almost_equal(self.org_joint_vel, joint_vel)
 
 
-def complete_keypoints(ik_utils, start, goal, unit_length=0.008):
+def complete_keypoints(start, goal, unit_length=0.008):
     from code.const import TRANSLU_YELLOW
     assert start.shape == goal.shape
     assert len(start.shape) in [1, 2]

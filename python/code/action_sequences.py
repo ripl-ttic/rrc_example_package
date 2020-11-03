@@ -27,14 +27,14 @@ class ScriptedActions:
         grasp_target_cube_positions = self.cube_tip_positions * coef
         target_tip_positions = apply_transform(obs['object_position'], obs['object_orientation'], grasp_target_cube_positions)
         self._update_markers(target_tip_positions, 'grasp')
-        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
+        tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
     def add_raise_tips(self, obs, height=CUBE_WIDTH * 1.4):
         last_tip_positions = self.get_last_tippos(obs)
         above_target_tip_positions = np.copy(last_tip_positions)
         above_target_tip_positions[:, 2] = CUBE_WIDTH * 1.4
-        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, last_tip_positions, above_target_tip_positions, unit_length=0.004)
+        tip_pos_sequence = utils.complete_keypoints(last_tip_positions, above_target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
     def add_heuristic_pregrasp(self, obs, coef=None, pregrasp_tip_pos=None):
@@ -48,8 +48,8 @@ class ScriptedActions:
             target_tip_positions = pregrasp_tip_pos
         above_target_tip_positions = np.copy(target_tip_positions)
         above_target_tip_positions[:, 2] = CUBE_WIDTH * 1.4
-        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, self.get_last_tippos(obs), above_target_tip_positions, unit_length=0.004)
-        tip_pos_sequence += utils.complete_keypoints(self.ik_utils, above_target_tip_positions, target_tip_positions, unit_length=0.004)
+        tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), above_target_tip_positions, unit_length=0.004)
+        tip_pos_sequence += utils.complete_keypoints(above_target_tip_positions, target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
     def add_liftup(self, obs, height=0.0425, coef=0.6):
@@ -58,7 +58,7 @@ class ScriptedActions:
             obs['object_position'] + np.array([0, 0, height]),
             obs['object_orientation'], grasp_target_cube_positions)
         self._update_markers(target_tip_positions, 'liftup')
-        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
+        tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
     def add_pitch_rotation(self, obs, rotate_axis, rotate_angle, coef=0.6):
@@ -68,7 +68,7 @@ class ScriptedActions:
             obs['object_position'] + np.array([0, 0, 0.0425]),
             self.orientation, grasp_target_cube_positions)
         self._update_markers(target_tip_positions, 'pitch')
-        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
+        tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
     def add_yaw_rotation(self, obs, step_angle=np.pi/3):
@@ -78,7 +78,7 @@ class ScriptedActions:
         self.orientation = ( R.from_euler('Z', angle_clipped) * R.from_quat(obs['object_orientation'])).as_quat()
         target_tip_positions = apply_transform(obs['object_position'], self.orientation, grasp_target_cube_positions)
         self._update_markers(target_tip_positions, 'yaw')
-        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, self.get_last_tippos(obs), target_tip_positions, unit_length=0.002)
+        tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), target_tip_positions, unit_length=0.002)
         self.tip_positions_list += tip_pos_sequence
         return angle_clipped
 
@@ -88,7 +88,7 @@ class ScriptedActions:
         target_tip_positions = apply_transform(obs['object_position'],
                                             self.orientation,
                                             grasp_target_cube_positions)
-        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
+        tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
     def add_release(self, obs, coef=2.0, min_allowed_height=0.02):
@@ -98,7 +98,7 @@ class ScriptedActions:
         min_height = target_tip_positions[:, 2].min()
         if min_height < min_allowed_height:
             target_tip_positions[:, 2] += (min_allowed_height - min_height)
-        tip_pos_sequence = utils.complete_keypoints(self.ik_utils, self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
+        tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
     def get_last_tippos(self, obs):

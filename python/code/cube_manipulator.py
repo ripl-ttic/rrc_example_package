@@ -418,7 +418,7 @@ class CubeManipulator:
             init_joint_conf = jconfs[0]
 
             from code.utils import complete_keypoints
-            keypoints = complete_keypoints(ik_utils, start=m_tip_pos, goal=tip_pos)
+            keypoints = complete_keypoints(start=m_tip_pos, goal=tip_pos)
             for keypoint in keypoints:
                 if self.vis_markers is not None:
                     self.vis_markers.add(keypoint, color=TRANSLU_YELLOW)
@@ -788,7 +788,8 @@ class CubeManipulator:
                 try:
                     target_joint_conf.append(target_joint[3*i:3*(i+1)])
                 except TypeError:
-                    return actions
+                    print('Warning: IK solution not found (tip_positions_to_actions)')
+                    # return actions
             action = np.concatenate(target_joint_conf)
             actions.append(action)
 
