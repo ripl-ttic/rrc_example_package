@@ -84,6 +84,7 @@ class WholeBodyPlanner:
             goal_threshold = ((retry_count / retry_grasp)
                               * (max_goal_threshold - min_goal_threshold)
                               + min_goal_threshold)
+            print(goal_threshold)
             for cube_tip_positions, current_tip_positions, joint_conf in grasps:
                 with keep_state(self.env):
                     self.env.platform.simfinger.reset_finger_positions_and_velocities(joint_conf)
