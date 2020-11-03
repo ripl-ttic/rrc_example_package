@@ -553,6 +553,7 @@ class CubeManipulator:
         return config
 
     def get_actions_moving_cube(self, obs, target_pos):
+        from code import utils
         tip_positions_list = []
 
         cube_tip_positions = apply_transform([0,0,0], R.from_quat(obs['object_orientation']).inv().as_quat(), obs['robot_tip_positions'] - obs['object_position'])
@@ -566,29 +567,30 @@ class CubeManipulator:
         position[2] = 0
         dist = np.linalg.norm(position)
 
-        if dist > 0.1:
-            #waypoint
-            position = np.copy(obs['object_position'])
-            position[0] = (position[0] + target_pos[0]) /2
-            position[1] = (position[1] + target_pos[1]) /2
-            target_tip_positions = apply_transform(position,
-                                                obs['object_orientation'],
-                                                grasp_target_cube_positions)
-            tip_positions_list.append(target_tip_positions)
+        # if dist > 0.1:
+        #     #waypoint
+        #     position = np.copy(obs['object_position'])
+        #     position[0] = (position[0] + target_pos[0]) /2
+        #     position[1] = (position[1] + target_pos[1]) /2
+        #     target_tip_positions = apply_transform(position,
+        #                                         obs['object_orientation'],
+        #                                         grasp_target_cube_positions)
+        #     tip_positions_list.append(target_tip_positions)
 
         #move
         position = np.copy(obs['object_position'])
         position[0] = target_pos[0]
         position[1] = target_pos[1]
         target_tip_positions = apply_transform(position,
-                                            obs['object_orientation'],
-                                            grasp_target_cube_positions)
-        tip_positions_list.append(target_tip_positions)
+                                               obs['object_orientation'],
+                                               grasp_target_cube_positions)
+
+        tip_positions_list += utils.complete_keypoints(grasp_target_tip_positions, target_tip_positions, unit_length=0.008)
 
         #release
         grasp_target_cube_positions = cube_tip_positions * 2.0
         grasp_target_tip_positions = apply_transform(position+np.array([0, 0, 0.02]), obs['object_orientation'], grasp_target_cube_positions)
-        tip_positions_list.append(grasp_target_tip_positions)
+        tip_positions_list += utils.complete_keypoints(tip_positions_list[-1], grasp_target_tip_positions, unit_length=0.008)
 
         return self.tip_positions_to_actions(tip_positions_list, obs)
 
