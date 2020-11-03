@@ -31,8 +31,8 @@ class CubeManipulator:
     def move_to_target(self, obs, target_pos, target_ori, force_control=True, skip_planned_motions=False, avoid_top=False, flipping=False):
         # move to grasp pose
         print('approach to grasp pose...')
-        # obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
-        obs = self.heuristic_grasp_approach(obs)
+        obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
+        # obs = self.heuristic_grasp_approach(obs)
 
         # tighten the grasp
         print('tightening the grasp...')
