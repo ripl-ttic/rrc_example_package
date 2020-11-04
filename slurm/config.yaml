@@ -1,0 +1,31 @@
+# This will launch 10 jobs in sequence to train a ppo agent.
+# See https://github.com/cbschaff/slurm for instructions on running multiple
+# experiments in parallel with grid/random seach.
+logdir: '/share/data/ripl/rrc_exps/11-04_fc_test'
+prefix: 'ppo'
+njobs: 10
+nexps: 10
+algorithm: grid
+
+params:
+    base_config: python/code/configs/residual_ppo.gin
+    gin_bindings:
+        ResidualPPO2.rollout_length: 256
+        ResidualPPO2.ent_coef: 0.0
+        ResidualPPO2.policy_fn: '@policy_fn'
+
+        policy_fn.torque_std: 0.01
+
+        make_pybullet_env.goal_difficulty:
+            values: [1, 2, 3]
+        make_pybullet_env.action_space: torque
+        make_pybullet_env.termination_fn: position_close_to_goal
+        make_pybullet_env.reward_fn: training_reward
+        make_pybullet_env.initializer: random_init
+        make_pybullet_env.episode_length: 3750
+
+slurm:
+    p: ripl-gpu
+    # p: contrib-cpu
+    # c: 16
+    # C: avx
