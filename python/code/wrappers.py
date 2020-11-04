@@ -731,7 +731,7 @@ class RandomizedEnvWrapper(gym.Wrapper):
         return ret_dic
 
 
-class AlignedInitCubeWrapper(gym.ObservationWrapper):
+class AlignedInitCubeWrapper(gym.Wrapper):
     '''
     The scripted cube-flipping assumes that the z-face of the initial cube is always facing up.
     It's not always the case in the real-robot environment.
@@ -752,21 +752,14 @@ class AlignedInitCubeWrapper(gym.ObservationWrapper):
         # self.visuals.append(
         #     VisualCubeOrientation(obs['object_position'], init_cube_ori)
         # )
-        # R_cube_to_base = Transform(np.zeros(3), init_cube_ori)
-        # base_z = R_cube_to_base(np.array([0, 0, 1]))
         base_z = np.array([0, 0, 1])
         rot_cube_to_base = R.from_quat(init_cube_ori)
 
-        # an even permutation forms a valid rotation matrice.
         # tmp = 0
         # marker = VisualMarkers()
         rotations = [R.from_euler('x', i * 90, degrees=True) for i in range(4)]
         rotations += [R.from_euler('y', i * 90, degrees=True) for i in range(4)]
-        # permutations = [R.from_matrix(np.eye(3)[:, perm]) for perm in ([0, 1, 2], [1, 2, 0], [2, 0, 1])]
-        # flip_around_x = [R.from_matrix(np.eye(3)), R.from_euler('x', 180, degrees=True)]
-        # rotations = [flip_rot * perm_rot for flip_rot in flip_around_x for perm_rot in permutations]
         for rotation in rotations:
-            # rot_base_z = rotation.apply(base_z)
             rot_base_z = (rot_cube_to_base * rotation).apply(base_z)
             # marker.add(rot_base_z * 0.05, color=(1, 0, 0, 0.5))
 
@@ -775,8 +768,8 @@ class AlignedInitCubeWrapper(gym.ObservationWrapper):
             #     VisualCubeOrientation(obs['object_position'] + tmp, (R.from_quat(init_cube_ori) * rotation).as_quat())
             # )
 
-            print('============== rot_base_z =================')
-            print(rot_base_z)
+            # print('============== rot_base_z =================')
+            # print(rot_base_z)
             if rot_base_z[2] > 0.7:
                 self.rot = rotation
                 break
@@ -787,22 +780,31 @@ class AlignedInitCubeWrapper(gym.ObservationWrapper):
         # self.visuals.append(
         #     VisualCubeOrientation(obs['object_position'] + 0.1, self._rotate(init_cube_ori))
         # )
-        print('============== rotation matrix =================')
         self.goal_ori = self._rotate(obs['goal_object_orientation'])
-        print(self.rot)
+        cube_ori = self._rotate(obs['object_orientation'])
 
-        return self.observation(obs)
+        # overwrite the values on cube_env
+        self.env.unwrapped.goal['orientation'] = self.goal_ori
+        self.env.unwrapped.platform.cube.set_state(obs['object_position'], cube_ori)
+        obs['goal_object_orientation'] = self.goal_ori
+        obs['object_orientation'] = cube_ori
+
+        return obs
 
     def _rotate(self, cube_quat):
         return (R.from_quat(cube_quat) * self.rot).as_quat()
 
-    def observation(self, obs):
-        # self.org_vis.set_state(obs['object_position'], obs['object_orientation'])
-        obs['object_orientation'] = self._rotate(obs['object_orientation'])
-        obs['goal_object_orientation'] = self.goal_ori
-        # self.vis.set_state(obs['object_position'] + 0.05, obs['object_orientation'])
-        self.unwrapped.platform.cube.set_state(
-            obs['object_position'],
-            obs['object_orientation']
-        )
-        return obs
+    # def observation(self, obs):
+    #     # self.org_vis.set_state(obs['object_position'], obs['object_orientation'])
+    #     obs['object_orientation'] = self._rotate(obs['object_orientation'])
+    #     obs['goal_object_orientation'] = self.goal_ori
+    #     # self.vis.set_state(obs['object_position'] + 0.05, obs['object_orientation'])
+    #     if 'clean_obs' in obs:
+    #         cube_pos = obs['clean_obs']['object_position']
+    #         cube_ori = obs['clean_obs']['object_orientation']
+    #     else:
+    #         cube_pos = obs['object_position']
+    #         cube_ori = obs['object_orientation']
+
+    #     # self.unwrapped.platform.cube.set_state(cube_pos, cube_ori)
+    #     return obs
