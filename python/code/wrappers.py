@@ -12,6 +12,7 @@ from code.const import INIT_JOINT_CONF
 import itertools
 from code.grasping import Transform
 from scipy.spatial.transform import Rotation as R
+from scipy.stats import truncnorm
 
 EXCEP_MSSG = "================= captured exception =================\n" + \
     "{message}\n" + "{error}\n" + '=================================='
@@ -514,11 +515,11 @@ class PyBulletClearGUIWrapper(gym.Wrapper):
         return obs
 
 class RandomizedEnvWrapper(gym.Wrapper):
-    def __init__(self, env,
-                 cube_rot_var=0.05, cube_pos_var=0.001, cube_randomize_step=3, cube_weight_scale=3,
-                 action_noise_scale=0.05,
-                 robot_position_noise_scale=0.01,
-                 visualize=False):
+    def __init__(self, env, cube_pos_range=0.004, cube_rot_range=0.28,
+                 cube_pos_stddev=0.08, cube_rot_stddev=0.004,
+                 cube_randomize_step=3, cube_weight_scale=3,
+                 action_noise_scale=0.01,
+                 robot_position_noise_scale=0.01):
         super().__init__(env)
         self.first_run = True
 
@@ -537,10 +538,11 @@ class RandomizedEnvWrapper(gym.Wrapper):
             'contactDamping':0.05
         }
 
-        self.visualize = visualize
         self.cube_randomize_step = cube_randomize_step
-        self.cube_rot_var = cube_rot_var
-        self.cube_pos_var = cube_pos_var
+        self.cube_pos_range = cube_pos_range
+        self.cube_rot_range = cube_rot_range
+        self.cube_pos_stddev = cube_pos_stddev
+        self.cube_rot_stddev = cube_rot_stddev
         self.cube_weight_scale=cube_weight_scale
         self.action_noise_scale=action_noise_scale
         self.robot_position_noise_scale=robot_position_noise_scale
@@ -572,6 +574,18 @@ class RandomizedEnvWrapper(gym.Wrapper):
 
             self.first_run=False
 
+        if self.env.visualization:
+            import trifinger_simulation
+            from code.utils import VisualCubeOrientation
+            self.noisy_ori_marker = VisualCubeOrientation(obs['object_position'], obs['object_orientation'])
+            self.noisy_cube = trifinger_simulation.visual_objects.CubeMarker(
+                width=0.065,
+                position=obs['object_position'],
+                orientation=obs['object_orientation'],
+                color=(0, 0, 0.7, 0.5),
+                physicsClientId=self.env.platform.simfinger._pybullet_client_id,
+            )
+
         self.randomize_param()
         #self.set_default()
         #self.set_params(**{'mass':100})
@@ -593,8 +607,10 @@ class RandomizedEnvWrapper(gym.Wrapper):
             self.sampleCubeRotNoise()
             self.step_count = 0
 
-        if self.visualize:
-            self.marker.set_state(position=observation['object_position'], orientation=observation['object_orientation'])
+        if self.env.visualization:
+            self.noisy_ori_marker.set_state(observation['object_position'], observation['object_orientation'])
+            self.noisy_cube.set_state(observation['object_position'], observation['object_orientation'])
+
         return observation, reward, is_done, info
 
     def randomize_action(self, action):
@@ -657,16 +673,33 @@ class RandomizedEnvWrapper(gym.Wrapper):
         return np.clip(pos, low, high)
 
     def sampleCubePosNoise(self):
-        self.cube_pos_noise = np.random.normal(0, scale=self.cube_pos_var, size=3)
+        # self.cube_pos_noise = np.random.normal(0, scale=self.cube_pos_var, size=3)
+        a = -(self.cube_pos_range / 2) / self.cube_pos_stddev
+        b = (self.cube_pos_range / 2) / self.cube_pos_stddev
+        self.cube_pos_noise = truncnorm.rvs(a, b, size=3) * \
+            (self.cube_pos_range / (b - a))
 
-    def sampleCubeRotNoise(self):
-        self.cube_rot_noise = self.randGaussRotation(self.cube_rot_var)
+    def sampleCubeRotNoise(self, degrees=False):
+        from scipy.spatial.transform import Rotation as R
+        # self.cube_rot_noise = self.randGaussRotation(self.cube_rot_var)
+        a = -(self.cube_rot_range / 2) / self.cube_rot_stddev
+        b = (self.cube_rot_range / 2) / self.cube_rot_stddev
+        euler = truncnorm.rvs(a, b, size=3) * \
+            (self.cube_pos_range / (b - a))
+        self.cube_rot_noise = R.from_euler('ZYX', euler, degrees=degrees)
 
     def randGaussRotation(self, var, degrees=False):
         from scipy.spatial.transform import Rotation as R
         order = 'ZYX'
         euler = np.random.normal(0, scale=var, size=3)
         return R.from_euler(order, euler, degrees=degrees)
+
+    def randTruncatedNormRotation(self, span, degrees=False):
+        from scipy.spatial.transform import Rotation as R
+        order = 'ZYX'
+        euler = truncnorm.rvs(-span / 2, span / 2, size=3)
+        return R.from_euler(order, euler, degrees=degrees)
+
 
     def randomize_param(self):
         cube_mass = np.random.uniform(low=1, high=self.cube_weight_scale) * self.cube_default_mass

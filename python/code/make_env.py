@@ -66,6 +66,8 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
     env = wrappers.InitStayHoldWrapper(env)
     if not sim:
         env = wrappers.AlignedInitCubeWrapper(env)
+    if sim:
+        env = wrappers.RandomizedEnvWrapper(env)
     if visualization:
         env = wrappers.PyBulletClearGUIWrapper(env)
     if monitor:
