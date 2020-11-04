@@ -4,3 +4,4 @@
 # work but using rosrun works for C++ executables as well)
 
 # rosrun rrc run_physical_episode.py "$@"
+rosrun rrc move_up_and_down.py "$@"
