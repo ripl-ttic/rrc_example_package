@@ -100,6 +100,7 @@ class GraspSampler(object):
             print("Grasp: not in force closure")
             return True, None
         points_base = self.T_cube_to_base(points)
+        print("Points base: ", points_base)
         qs = self.ik_utils.sample_no_collision_ik(points_base, sort_tips=False,
                                                   slacky_collision=self.slacky_collision)
         if len(qs) == 0:
