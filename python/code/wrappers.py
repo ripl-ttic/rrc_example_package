@@ -82,7 +82,7 @@ class InitStayHoldWrapper(gym.Wrapper):
     '''
     def __init__(self, env, hold_steps=300):
         super().__init__(env)
-        self.hold_steps = env.episode_length
+        self.hold_steps = hold_steps
         self.env = env
 
     def reset(self):
