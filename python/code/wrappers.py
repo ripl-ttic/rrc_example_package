@@ -764,7 +764,7 @@ class RandomizedEnvWrapper(gym.Wrapper):
         return ret_dic
 
 
-class AlignedInitCubeWrapper(gym.Wrapper):
+class AlignedInitCubeWrapper(gym.ObservationWrapper):
     '''
     The scripted cube-flipping assumes that the z-face of the initial cube is always facing up.
     It's not always the case in the real-robot environment.
@@ -817,8 +817,8 @@ class AlignedInitCubeWrapper(gym.Wrapper):
         cube_ori = self._rotate(obs['object_orientation'])
 
         # overwrite the values on cube_env
-        self.env.unwrapped.goal['orientation'] = self.goal_ori
-        self.env.unwrapped.platform.cube.set_state(obs['object_position'], cube_ori)
+        # self.env.unwrapped.goal['orientation'] = self.goal_ori
+        # self.env.unwrapped.platform.cube.set_state(obs['object_position'], cube_ori)
         obs['goal_object_orientation'] = self.goal_ori
         obs['object_orientation'] = cube_ori
 
@@ -827,17 +827,11 @@ class AlignedInitCubeWrapper(gym.Wrapper):
     def _rotate(self, cube_quat):
         return (R.from_quat(cube_quat) * self.rot).as_quat()
 
-    # def observation(self, obs):
-    #     # self.org_vis.set_state(obs['object_position'], obs['object_orientation'])
-    #     obs['object_orientation'] = self._rotate(obs['object_orientation'])
-    #     obs['goal_object_orientation'] = self.goal_ori
-    #     # self.vis.set_state(obs['object_position'] + 0.05, obs['object_orientation'])
-    #     if 'clean_obs' in obs:
-    #         cube_pos = obs['clean_obs']['object_position']
-    #         cube_ori = obs['clean_obs']['object_orientation']
-    #     else:
-    #         cube_pos = obs['object_position']
-    #         cube_ori = obs['object_orientation']
+    def observation(self, obs):
+        # self.org_vis.set_state(obs['object_position'], obs['object_orientation'])
+        obs['object_orientation'] = self._rotate(obs['object_orientation'])
+        obs['goal_object_orientation'] = self.goal_ori
+        # self.vis.set_state(obs['object_position'] + 0.05, obs['object_orientation'])
 
-    #     # self.unwrapped.platform.cube.set_state(cube_pos, cube_ori)
-    #     return obs
+        # self.unwrapped.platform.cube.set_state(obs['object_position'], obs['object_orientation'])
+        return obs
