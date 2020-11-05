@@ -87,6 +87,7 @@ class WholeBodyPlanner:
             print(counter, goal_threshold)
             for cube_tip_positions, current_tip_positions, joint_conf in grasps:
                 print('trying grasp...')
+                print("use_ori", use_ori)
                 with keep_state(self.env):
                     self.env.platform.simfinger.reset_finger_positions_and_velocities(joint_conf)
                     cube_path, joint_conf_path = plan_wholebody_motion(
