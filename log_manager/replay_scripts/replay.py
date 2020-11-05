@@ -12,6 +12,7 @@ from trifinger_simulation import camera, visual_objects
 import trifinger_object_tracking.py_tricamera_types as tricamera
 import trifinger_cameras
 from trifinger_cameras.utils import convert_image
+from scipy.spatial.transform import Rotation as R
 import cv2
 import json
 
@@ -65,6 +66,93 @@ class SphereMarker:
         # an error, only remove the object if the simulation is still running.
         if p.isConnected():
             p.removeBody(self.body_id)
+
+
+class VisualCubeOrientation:
+    '''visualize cube orientation by three cylinder'''
+    def __init__(self, cube_position, cube_orientation, cube_halfwidth=0.0325):
+        self.markers = []
+        self.cube_halfwidth = cube_halfwidth
+
+        color_cycle = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1]]
+
+        self.z_axis = np.asarray([0,0,1])
+
+        const = 1 / np.sqrt(2)
+        x_rot = R.from_quat([const, 0, const, 0])
+        y_rot = R.from_quat([0, const, const, 0])
+        z_rot = R.from_quat([0,0,0,1])
+
+        assert( np.linalg.norm( x_rot.apply(self.z_axis) - np.asarray([1., 0., 0.]) ) < 0.00000001)
+        assert( np.linalg.norm( y_rot.apply(self.z_axis) - np.asarray([0., 1., 0.]) ) < 0.00000001)
+        assert( np.linalg.norm( z_rot.apply(self.z_axis) - np.asarray([0., 0., 1.]) ) < 0.00000001)
+
+        self.rotations = [x_rot, y_rot, z_rot]
+        cube_rot = R.from_quat(cube_orientation)
+
+        #x: red , y: green, z: blue
+        for rot, color in zip(self.rotations, color_cycle):
+            rotation = cube_rot * rot
+            orientation = rotation.as_quat()
+            bias = rotation.apply(self.z_axis) * cube_halfwidth
+            self.markers.append(
+                CylinderMarker(radius=cube_halfwidth/20,
+                               length=cube_halfwidth*2,
+                               position=cube_position + bias,
+                               orientation=orientation,
+                               color=color)
+            )
+
+    def set_state(self, position, orientation):
+        cube_rot = R.from_quat(orientation)
+        for rot, marker in zip(self.rotations, self.markers):
+            rotation = cube_rot * rot
+            orientation = rotation.as_quat()
+            bias = rotation.apply(self.z_axis) * self.cube_halfwidth
+            marker.set_state(position=position + bias,
+                             orientation=orientation)
+
+
+class CylinderMarker:
+    """Visualize a cylinder."""
+
+    def __init__(
+        self, radius, length, position, orientation, color=(0, 1, 0, 0.5)):
+        """
+        Create a cylinder marker for visualization
+
+        Args:
+            radius (float): radius of cylinder.
+            length (float): length of cylinder.
+            position: Position (x, y, z)
+            orientation: Orientation as quaternion (x, y, z, w)
+            color: Color of the cube as a tuple (r, b, g, q)
+        """
+
+        self.shape_id = p.createVisualShape(
+            shapeType=p.GEOM_CYLINDER,
+            radius=radius,
+            length=length,
+            rgbaColor=color
+        )
+        self.body_id = p.createMultiBody(
+            baseVisualShapeIndex=self.shape_id,
+            basePosition=position,
+            baseOrientation=orientation
+        )
+
+    def set_state(self, position, orientation):
+        """Set pose of the marker.
+
+        Args:
+            position: Position (x, y, z)
+            orientation: Orientation as quaternion (x, y, z, w)
+        """
+        p.resetBasePositionAndOrientation(
+            self.body_id,
+            position,
+            orientation
+        )
 
 
 class CubeDrawer:
@@ -168,6 +256,9 @@ def main(logdir, video_path):
         initial_object_pose=initial_object_pose,
     )
     markers = []
+    marker_cube_ori = VisualCubeOrientation(data['cube'][0].position,
+                                            data['cube'][0].orientation)
+    marker_goal_ori = VisualCubeOrientation(goal['position'], goal['orientation'])
 
     visual_objects.CubeMarker(
         width=0.065,
@@ -175,16 +266,16 @@ def main(logdir, video_path):
         orientation=goal['orientation'],
         physicsClientId=platform.simfinger._pybullet_client_id,
     )
-    if 'grasp_target_cube_pose' in custom_log:
-        markers.append(
-            visual_objects.CubeMarker(
-                width=0.065,
-                position=custom_log['grasp_target_cube_pose']['position'],
-                orientation=custom_log['grasp_target_cube_pose']['orientation'],
-                color=(0, 0, 1, 0.5),
-                physicsClientId=platform.simfinger._pybullet_client_id,
-            )
-        )
+    # if 'grasp_target_cube_pose' in custom_log:
+    #     markers.append(
+    #         visual_objects.CubeMarker(
+    #             width=0.065,
+    #             position=custom_log['grasp_target_cube_pose']['position'],
+    #             orientation=custom_log['grasp_target_cube_pose']['orientation'],
+    #             color=(0, 0, 1, 0.5),
+    #             physicsClientId=platform.simfinger._pybullet_client_id,
+    #         )
+    #     )
     if 'pregrasp_tip_positions' in custom_log:
         for tip_pos in custom_log['pregrasp_tip_positions']:
             print(tip_pos)
@@ -232,6 +323,7 @@ def main(logdir, video_path):
     for i, t in enumerate(data['t']):
         platform.simfinger.reset_finger_positions_and_velocities(data['desired_action'][i].position)
         platform.cube.set_state(data['cube'][i].position, data['cube'][i].orientation)
+        marker_cube_ori.set_state(data['cube'][i].position, data['cube'][i].orientation)
         frame_desired = video_recorder.get_views()
         frame_desired = cv2.cvtColor(frame_desired, cv2.COLOR_RGB2BGR)
         platform.simfinger.reset_finger_positions_and_velocities(data['robot'][i].position)
