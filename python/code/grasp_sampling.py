@@ -41,6 +41,39 @@ def sample(n, cube_halfwidth, cube_ori, shrink_region=0.6):
     return points
 
 
+def get_heurisic_grasps(cube_halfwidth, cube_ori):
+    points = np.array([
+        [1, 0, 0],
+        [-1, 0, 0],
+        [0, 1, 0],
+        [0, -1, 0]
+    ])
+    R_base_to_cube = Transform(np.zeros(3), cube_ori).inverse()
+    points = R_base_to_cube(points)
+    faces = []
+    for point in points:
+        axis = np.argmax(np.abs(point))
+        sign = np.sign(point[axis])
+        if axis == 2:
+            faces.append(-1 if sign == 1 else -2)
+        elif axis == 1:
+            faces.append(0 if sign == 1 else 2)
+        elif axis == 0:
+            faces.append(1 if sign == 1 else 3)
+        else:
+            raise ValueError("SOMETHING WENT WRONG")
+    # get face centers in cube frame
+    points = np.array([sample_from_normal_cube(cube_halfwidth,
+                                               shrink_region=0.0,
+                                               face=face,
+                                               sample_from_all_faces=True)
+                       for face in faces])
+    grasps = []
+    for ind in range(4):
+        grasps.append(points[np.array([x for x in range(4) if x != ind])])
+    return grasps
+
+
 class GraspSampler(object):
     def __init__(self, env, obs, mu=1.0, slacky_collision=False):
         from code.const import INIT_JOINT_CONF
@@ -104,6 +137,21 @@ class GraspSampler(object):
                 return points, tips, q
             retry += 1
         raise RuntimeError('No feasible grasp is found.')
+
+    def get_heurisic_grasps(self, cube_halwidth):
+        grasps = get_heurisic_grasps(cube_halwidth, self.cube_ori)
+        valid_grasps = []
+        for points in grasps:
+            tips = self.T_cube_to_base(points)
+            tips, inds = self._assign_positions_to_fingers(tips)
+            points = points[inds, :]
+            should_reject, q = self._reject(points)
+            if not should_reject:
+                self.env.platform.simfinger.reset_finger_positions_and_velocities(self.q_init, self.v_init)  # TEMP: this line lacks somewhere in this class..
+                valid_grasps.append([points, tips, q])
+        return valid_grasps
+
+
 
 
 if __name__ == '__main__':

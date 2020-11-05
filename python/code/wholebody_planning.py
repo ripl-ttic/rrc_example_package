@@ -63,7 +63,7 @@ class WholeBodyPlanner:
 
         goal_ori = p.getEulerFromQuaternion(goal_quat)
         target_pose = np.concatenate([goal_pos, goal_ori])
-        sample_fc_grasp = GraspSampler(self.env, obs, mu=mu, slacky_collision=True)
+        grasps = GraspSampler(self.env, obs, mu=mu, slacky_collision=True).get_heurisic_grasps(cube_halfwidth)
         org_joint_conf = obs['robot_position']
         org_joint_vel = obs['robot_velocity']
 
@@ -73,41 +73,44 @@ class WholeBodyPlanner:
         # else:
         #     vis_cubeori = None
 
-        counter = 0
+        counter = -1
         cube_path = None
         from code.utils import keep_state
         while cube_path is None and counter < retry_grasp:
-            with keep_state(self.env):
-                goal_threshold = ((counter / retry_grasp)
-                                * (max_goal_threshold - min_goal_threshold)
-                                + min_goal_threshold)
-                cube_tip_positions, current_tip_positions, joint_conf = sample_fc_grasp(cube_halfwidth, shrink_region=0.35)
-                self.env.platform.simfinger.reset_finger_positions_and_velocities(joint_conf)
-                cube_path, joint_conf_path = plan_wholebody_motion(
-                    self.env.platform.cube.block,
-                    dummy_links,
-                    self.env.platform.simfinger.finger_id,
-                    self.env.platform.simfinger.pybullet_link_indices,
-                    target_pose,
-                    current_tip_positions,
-                    cube_tip_positions,
-                    init_joint_conf=joint_conf,
-                    ik=self.env.pinocchio_utils.inverse_kinematics,
-                    obstacles=[self.env.platform.simfinger.finger_id],
-                    disabled_collisions=self._disabled_collisions,
-                    custom_limits=custom_limits,
-                    resolutions=resolutions,
-                    diagnosis=False,
-                    max_distance=-COLLISION_TOLERANCE,
-                    # vis_fn=vis_cubeori.set_state,
-                    iterations=20,
-                    use_rrt=use_rrt,
-                    use_incremental_rrt=use_incremental_rrt,
-                    use_ori=use_ori,
-                    goal_threshold=goal_threshold,
-                    restarts=1
-                )
-                counter += 1
+            retry_count = max(0, counter)
+            goal_threshold = ((retry_count / retry_grasp)
+                              * (max_goal_threshold - min_goal_threshold)
+                              + min_goal_threshold)
+            for cube_tip_positions, current_tip_positions, joint_conf in grasps:
+                with keep_state(self.env):
+                    self.env.platform.simfinger.reset_finger_positions_and_velocities(joint_conf)
+                    cube_path, joint_conf_path = plan_wholebody_motion(
+                        self.env.platform.cube.block,
+                        dummy_links,
+                        self.env.platform.simfinger.finger_id,
+                        self.env.platform.simfinger.pybullet_link_indices,
+                        target_pose,
+                        current_tip_positions,
+                        cube_tip_positions,
+                        init_joint_conf=joint_conf,
+                        ik=self.env.pinocchio_utils.inverse_kinematics,
+                        obstacles=[self.env.platform.simfinger.finger_id],
+                        disabled_collisions=self._disabled_collisions,
+                        custom_limits=custom_limits,
+                        resolutions=resolutions,
+                        diagnosis=False,
+                        max_distance=-COLLISION_TOLERANCE,
+                        # vis_fn=vis_cubeori.set_state,
+                        iterations=20,
+                        use_rrt=use_rrt,
+                        use_incremental_rrt=use_incremental_rrt,
+                        use_ori=use_ori,
+                        goal_threshold=goal_threshold,
+                        restarts=0 if counter < 0 else 1  # only check for direct path the first time
+                    )
+                if cube_path is not None:
+                    break
+            counter += 1
 
                 # # reset cube position
                 # self.env.platform.cube.block.set_state(obs['object_position'],
