@@ -209,7 +209,7 @@ def cube_centered(obs):
 
     dist = np.linalg.norm(pos_xy)
 
-    return (dist < 0.07)
+    return (dist < 0.1)
 
 def align_rotation(env, obs, cube_manipulator, yaw_planning=True):
     import time

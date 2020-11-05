@@ -46,6 +46,7 @@ class GraspSampler(object):
         from code.const import INIT_JOINT_CONF
         from code.utils import IKUtils
         self.cube = Cube(0.0325, CoulombFriction(mu=mu))
+        self.cube_ori = obs['object_orientation']
         self.ik = env.pinocchio_utils.inverse_kinematics
         self.id = env.platform.simfinger.finger_id
         self.tip_ids = env.platform.simfinger.pybullet_tip_link_indices
@@ -88,12 +89,11 @@ class GraspSampler(object):
         return opt_tips, opt_inds
 
     def __call__(self, cube_halfwidth, shrink_region=0.6, max_retries=300):
-        cube_ori = self.env.platform.cube.get_state()[1]
         retry = 0
         while retry < max_retries:
             if cube_halfwidth < 0.0325:
                 raise ValueError('cube_halwidth must be larger than 0.0325')
-            points = sample(3, cube_halfwidth, cube_ori,
+            points = sample(3, cube_halfwidth, self.cube_ori,
                             shrink_region=shrink_region)
             tips = self.T_cube_to_base(points)
             tips, inds = self._assign_positions_to_fingers(tips)
