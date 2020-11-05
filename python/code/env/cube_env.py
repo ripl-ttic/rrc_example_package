@@ -335,6 +335,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
             robot_observation = self.real_platform.get_robot_observation(t)
             camera_observation = self.real_platform.get_camera_observation(t)
             obj_obs = camera_observation.filtered_object_pose
+            if np.allclose(obj_obs.orientation, 0.0):
+                obj_obs = camera_observation.object_pose
 
         observation = {
             "robot": {
