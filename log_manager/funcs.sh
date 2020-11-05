@@ -135,3 +135,14 @@ function wait_for_job_finish()
         date
     done
 }
+
+function fetch_and_upload_roboch_file()
+{
+    scp -i sshkey ${username}@${hostname}:roboch.json ../roboch.json.bk
+    scp -i sshkey ../roboch.json ${username}@${hostname}:roboch.json
+}
+
+function restore_roboch_file()
+{
+    scp -i sshkey ../roboch.json.bk ${username}@${hostname}:roboch.json
+}
