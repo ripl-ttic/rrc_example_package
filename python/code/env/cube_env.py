@@ -330,9 +330,11 @@ class RealRobotCubeEnv(gym.GoalEnv):
         if self.simulation:
             robot_observation = self.platform.get_robot_observation(t)
             camera_observation = self.platform.get_camera_observation(t)
+            obj_obs = camera_observation.object_pose
         else:
             robot_observation = self.real_platform.get_robot_observation(t)
             camera_observation = self.real_platform.get_camera_observation(t)
+            obj_obs = camera_observation.filtered_object_pose
 
         observation = {
             "robot": {
@@ -345,8 +347,8 @@ class RealRobotCubeEnv(gym.GoalEnv):
             "action": action,
             "desired_goal": self.goal,
             "achieved_goal": {
-                "position": camera_observation.filtered_object_pose.position,
-                "orientation": camera_observation.filtered_object_pose.orientation,
+                "position": obj_obs.position,
+                "orientation": obj_obs.orientation,
             },
         }
         return observation
