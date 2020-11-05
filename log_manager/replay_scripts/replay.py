@@ -224,7 +224,7 @@ def get_synced_log_data(logdir):
             robot_observation = log.get_robot_observation(t)
             camera_observation = log.get_camera_observation(t)
             obs['robot'].append(robot_observation)
-            obs['cube'].append(camera_observation.object_pose)
+            obs['cube'].append(camera_observation.filtered_object_pose)
             obs['images'].append([convert_image(camera.image)
                                   for camera in camera_observation.cameras])
             obs['desired_action'].append(log.get_desired_action(t))
