@@ -37,8 +37,12 @@ import torch
 from code.residual_ppo import ResidualPPO2
 
 
+def use_ppo(difficulty):
+    return difficulty in [1, 2, 3, 4] and False
+
+
 def _init_env_and_policy(goal_pose_json, difficulty):
-    if difficulty in [1, 2, 3, 4]:
+    if use_ppo(difficulty):
         # HACK to get the path to the root directory
         root_dir = os.path.dirname(os.path.realpath(__file__))
         if difficulty == 4:
@@ -110,7 +114,7 @@ def main():
     # )
 
     env, ppo = _init_env_and_policy(goal_pose_json, difficulty)
-    if difficulty in [1, 2, 3, 4] and False:
+    if ppo is not None:
         # run residual policy
         obs = env.reset()
         done = False
