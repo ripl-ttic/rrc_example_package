@@ -66,7 +66,7 @@ class WholeBodyPlanner:
         grasp_sampler = GraspSampler(self.env, obs, mu=mu, slacky_collision=True)
         grasps = grasp_sampler.get_heurisic_grasps(cube_halfwidth)
         n = 10 - len(grasps)
-        grasps = [grasp_sampler(cube_halfwidth, 0.4) for _ in range(n)]
+        grasps += [grasp_sampler(cube_halfwidth, 0.4) for _ in range(n)]
         org_joint_conf = obs['robot_position']
         org_joint_vel = obs['robot_velocity']
 
