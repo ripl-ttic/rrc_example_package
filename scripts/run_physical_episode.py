@@ -38,7 +38,7 @@ from code.residual_ppo import ResidualPPO2
 
 
 def use_ppo(difficulty):
-    return difficulty in [1, 2, 3, 4] and False
+    return difficulty in [1, 2, 3, 4]
 
 
 def _init_env_and_policy(goal_pose_json, difficulty):
