@@ -31,8 +31,8 @@ class CubeManipulator:
     def move_to_target(self, obs, target_pos, target_ori, force_control=True, skip_planned_motions=False, avoid_top=False, flipping=False):
         # move to grasp pose
         print('approach to grasp pose...')
-        # obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
-        obs = self.heuristic_grasp_approach(obs)
+        obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
+        # obs = self.heuristic_grasp_approach(obs)
 
         # tighten the grasp
         print('tightening the grasp...')
@@ -785,13 +785,13 @@ class CubeManipulator:
         actions = []
         for tip_positions in tip_positions_list:
             target_joint_conf = []
-            for i in range(3):
-                target_joint = ik(i, tip_positions[i], obs['robot_position'])
-                try:
+            try:
+                for i in range(3):
+                    target_joint = ik(i, tip_positions[i], obs['robot_position'])
                     target_joint_conf.append(target_joint[3*i:3*(i+1)])
-                except TypeError:
-                    print('Warning: IK solution not found (tip_positions_to_actions)')
-                    # return actions
+            except TypeError:
+                print('Warning: IK solution not found (tip_positions_to_actions)')
+                continue
             action = np.concatenate(target_joint_conf)
             actions.append(action)
 
