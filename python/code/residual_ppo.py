@@ -1,4 +1,5 @@
 """Define networks and ResidualPPO2."""
+import json
 from dl.rl import PolicyBase, ValueFunctionBase, Policy, ValueFunction
 from dl.rl import VecEpisodeLogger, VecRewardNormWrapper, RolloutDataManager
 from dl.rl.util import misc, rl_evaluate, rl_record
@@ -20,14 +21,21 @@ from trifinger_simulation.tasks import move_cube
 def make_pybullet_env(nenv, goal_difficulty, action_space, frameskip=1,
                       visualization=False, reward_fn=None, termination_fn=None,
                       initializer=None, episode_length=120000, residual=False,
-                      monitor=False, seed=0, norm_observations=False):
+                      monitor=False, seed=0, norm_observations=False,
+                      goal_pose=None, sim=True):
 
     # dummy goal dict
     goal = move_cube.sample_goal(goal_difficulty)
+
+    # overwrite goal pose if goal_pose is specified
+    if goal_pose is not None:
+        goal = move_cube.Pose.from_dict(goal_pose)
+
     goal_dict = {
         'position': goal.position,
         'orientation': goal.orientation
     }
+
 
     def _env(rank):
         def _thunk():
@@ -36,7 +44,7 @@ def make_pybullet_env(nenv, goal_difficulty, action_space, frameskip=1,
                 goal_difficulty=goal_difficulty,
                 action_space=action_space,
                 frameskip=frameskip,
-                sim=True,
+                sim=sim,
                 visualization=visualization,
                 reward_fn=reward_fn,
                 termination_fn=termination_fn,

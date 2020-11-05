@@ -1,4 +1,4 @@
-import rrc_simulation.code.residual_ppo
+import code.residual_ppo
 
 # Parameters for pi/Adam:
 # ==============================================================================
@@ -30,11 +30,7 @@ DiagGaussian.log_std_min = -20
 # ==============================================================================
 make_pybullet_env.action_space = 'torque'
 make_pybullet_env.frameskip = 3
-make_pybullet_env.grasp = 'pinch'
-make_pybullet_env.init_joint_conf = True
 make_pybullet_env.initializer = 'task1_init'
-make_pybullet_env.kd_coef = None
-make_pybullet_env.kp_coef = None
 make_pybullet_env.monitor = False
 make_pybullet_env.norm_observations = True
 make_pybullet_env.residual = True

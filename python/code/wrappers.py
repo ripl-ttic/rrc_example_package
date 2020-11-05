@@ -22,15 +22,12 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
         self.observation_names = [
             "robot_position",
             "robot_velocity",
-            "robot_torque",
             "robot_tip_positions",
             "object_position",
             "object_orientation",
             "goal_object_position",
             "goal_object_orientation",
             "tip_force",
-            "action_torque",
-            "action_position"
         ]
 
         self.observation_space = gym.spaces.Dict(
