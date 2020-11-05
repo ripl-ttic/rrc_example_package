@@ -98,14 +98,11 @@ class GraspSampler(object):
         contacts = [self.cube.contact_from_tip_position(point)
                     for point in points]
         if not self.cube.force_closure_test(contacts):
-            print("Grasp: not in force closure")
             return True, None
         points_base = self.T_cube_to_base(points)
-        print("Points base: ", points_base)
         qs = self.ik_utils.sample_no_collision_ik(points_base, sort_tips=False,
                                                   slacky_collision=self.slacky_collision)
         if len(qs) == 0:
-            print("Grasp: NO IK Solution")
             return True, None
         return False, qs[0]
 
@@ -143,7 +140,6 @@ class GraspSampler(object):
 
     def get_heurisic_grasps(self, cube_halwidth):
         grasps = get_heurisic_grasps(cube_halwidth, self.cube_ori)
-        print(grasps)
         valid_grasps = []
         for points in grasps:
             tips = self.T_cube_to_base(points)
@@ -153,7 +149,6 @@ class GraspSampler(object):
             if not should_reject:
                 self.env.platform.simfinger.reset_finger_positions_and_velocities(self.q_init, self.v_init)  # TEMP: this line lacks somewhere in this class..
                 valid_grasps.append([points, tips, q])
-        print(valid_grasps)
         return valid_grasps
 
 
