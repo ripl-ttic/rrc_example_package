@@ -92,17 +92,21 @@ class GraspSampler(object):
         self.env = env
         self.ik_utils = IKUtils(env)
         self.slacky_collision = slacky_collision
-        self._org_tips_init = self.env.platform.forward_kinematics(INIT_JOINT_CONF)
+        self._org_tips_init = np.array(self.env.platform.forward_kinematics(INIT_JOINT_CONF))
 
     def _reject(self, points):
         contacts = [self.cube.contact_from_tip_position(point)
                     for point in points]
         if not self.cube.force_closure_test(contacts):
+            print("GRASPING: Not in Force Closure.")
             return True, None
         points_base = self.T_cube_to_base(points)
+        print("GRASP POINTS:")
+        print(points_base)
         qs = self.ik_utils.sample_no_collision_ik(points_base, sort_tips=False,
                                                   slacky_collision=self.slacky_collision)
         if len(qs) == 0:
+            print("GRASPING: No IK Solution.")
             return True, None
         return False, qs[0]
 
@@ -143,13 +147,28 @@ class GraspSampler(object):
         valid_grasps = []
         for points in grasps:
             tips = self.T_cube_to_base(points)
-            tips, inds = self._assign_positions_to_fingers(tips)
-            points = points[inds, :]
-            should_reject, q = self._reject(points)
-            if not should_reject:
-                self.env.platform.simfinger.reset_finger_positions_and_velocities(self.q_init, self.v_init)  # TEMP: this line lacks somewhere in this class..
-                valid_grasps.append([points, tips, q])
+            for inds in itertools.permutations([0, 1, 2]):
+                sorted_tips = tips[inds, :]
+                sorted_points = points[inds, :]
+                should_reject, q = self._reject(sorted_points)
+                if not should_reject:
+                    self.env.platform.simfinger.reset_finger_positions_and_velocities(self.q_init, self.v_init)  # TEMP: this line lacks somewhere in this class..
+                    valid_grasps.append([sorted_points, sorted_tips, q])
+        print("YAYAYAYYYA")
+        print(len(valid_grasps))
         return valid_grasps
+    # def get_heurisic_grasps(self, cube_halwidth):
+    #     grasps = get_heurisic_grasps(cube_halwidth, self.cube_ori)
+    #     valid_grasps = []
+    #     for points in grasps:
+    #         tips = self.T_cube_to_base(points)
+    #         tips, inds = self._assign_positions_to_fingers(tips)
+    #         points = points[inds, :]
+    #         should_reject, q = self._reject(points)
+    #         if not should_reject:
+    #             self.env.platform.simfinger.reset_finger_positions_and_velocities(self.q_init, self.v_init)  # TEMP: this line lacks somewhere in this class..
+    #             valid_grasps.append([points, tips, q])
+    #     return valid_grasps
 
 
 

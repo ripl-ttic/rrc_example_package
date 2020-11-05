@@ -73,6 +73,9 @@ class WholeBodyPlanner:
         # else:
         #     vis_cubeori = None
 
+        print("WHOLEBODY PLANNING")
+        print("GRASPS")
+        print(grasps)
         counter = -1
         cube_path = None
         from code.utils import keep_state
@@ -81,7 +84,9 @@ class WholeBodyPlanner:
             goal_threshold = ((retry_count / retry_grasp)
                               * (max_goal_threshold - min_goal_threshold)
                               + min_goal_threshold)
+            print(counter, goal_threshold)
             for cube_tip_positions, current_tip_positions, joint_conf in grasps:
+                print('trying grasp...')
                 with keep_state(self.env):
                     self.env.platform.simfinger.reset_finger_positions_and_velocities(joint_conf)
                     cube_path, joint_conf_path = plan_wholebody_motion(
