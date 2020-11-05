@@ -750,5 +750,5 @@ class AlignedInitCubeWrapper(gym.ObservationWrapper):
         obs['goal_object_orientation'] = self.goal_ori
         # self.vis.set_state(obs['object_position'] + 0.05, obs['object_orientation'])
 
-        # self.unwrapped.platform.cube.set_state(obs['object_position'], obs['object_orientation'])
+        self.unwrapped.platform.cube.set_state(obs['object_position'], obs['object_orientation'])
         return obs
