@@ -37,7 +37,7 @@ def get_termination_fn(name):
 def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1,
                       sim=False, visualization=False, reward_fn=None,
                       termination_fn=None, initializer=None, episode_length=120000,
-                      residual=False, rank=0, monitor=False):
+                      residual=False, rank=0, monitor=False, randomize=False):
     is_level_4 = goal_difficulty == 4
     reward_fn = get_reward_fn(reward_fn)
     initializer = get_initializer(initializer)(goal_difficulty)
@@ -76,6 +76,8 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
             video_callable=lambda episode_id: True,
             mode='evaluation'
         )
+    if randomize:
+        env = wrappers.RandomizedEnvWrapper(env, visualize=visualization)
     if residual:
         if action_space == 'torque':
             # env = JointConfInitializationWrapper(env, heuristic=grasp)

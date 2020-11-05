@@ -785,13 +785,13 @@ class CubeManipulator:
         actions = []
         for tip_positions in tip_positions_list:
             target_joint_conf = []
-            for i in range(3):
-                target_joint = ik(i, tip_positions[i], obs['robot_position'])
-                try:
+            try:
+                for i in range(3):
+                    target_joint = ik(i, tip_positions[i], obs['robot_position'])
                     target_joint_conf.append(target_joint[3*i:3*(i+1)])
-                except TypeError:
-                    print('Warning: IK solution not found (tip_positions_to_actions)')
-                    # return actions
+            except TypeError:
+                print('Warning: IK solution not found (tip_positions_to_actions)')
+                continue
             action = np.concatenate(target_joint_conf)
             actions.append(action)
 
