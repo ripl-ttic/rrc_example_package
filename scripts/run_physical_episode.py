@@ -79,7 +79,6 @@ def _init_env_and_policy(goal_pose_json, difficulty):
             'termination_fn': 'no_termination',
             'initializer': 'random_init',
             'monitor': False,
-            'sim': False,
             'randomize': False,
             'rank': 0
         }
