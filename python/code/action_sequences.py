@@ -63,13 +63,19 @@ class ScriptedActions:
 
     def add_pitch_rotation(self, obs, rotate_axis, rotate_angle, coef=0.6):
         grasp_target_cube_positions = self.cube_tip_positions * coef
-        self.orientation = (R.from_quat(obs['object_orientation']) * R.from_euler(rotate_axis, rotate_angle)).as_quat()
-        target_tip_positions = apply_transform(
-            obs['object_position'] + np.array([0, 0, 0.0425]),
-            self.orientation, grasp_target_cube_positions)
-        self._update_markers(target_tip_positions, 'pitch')
-        tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
-        self.tip_positions_list += tip_pos_sequence
+        rotate_step = np.pi / 30
+        for i in range(int(rotate_angle / rotate_step)):
+            rot_angle = i * rotate_step
+            rot = R.from_euler(rotate_axis, rot_angle)
+            orientation = (R.from_quat(obs['object_orientation']) * rot).as_quat()
+            target_tip_positions = apply_transform(
+                obs['object_position'] + np.array([0, 0, 0.0425]),
+                orientation, grasp_target_cube_positions)
+            self.tip_positions_list.append(target_tip_positions)
+
+        total_rot = R.from_euler(rotate_axis, rot_angle)
+        self.orientation = (R.from_quat(obs['object_orientation']) * total_rot).as_quat()
+        # self._update_markers(target_tip_positions, 'pitch')
 
     def add_yaw_rotation(self, obs, step_angle=np.pi/3):
         grasp_target_cube_positions = self.cube_tip_positions * 0.9
@@ -102,7 +108,7 @@ class ScriptedActions:
         self.tip_positions_list += tip_pos_sequence
 
     def get_last_tippos(self, obs):
-        if not self.tip_positions_list:
+        if len(self.tip_positions_list) == 0:
             return obs['robot_tip_positions']
         return self.tip_positions_list[-1]
 

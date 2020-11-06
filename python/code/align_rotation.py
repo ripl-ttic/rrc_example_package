@@ -172,6 +172,7 @@ def align_z(cube_orientation, projected_goal_orientation):
         return (rot * rot_aligns[idx]).as_quat(), axes[idx], np.pi
 
 def pitch_rotation_axis_and_angle(cube_tip_positions):
+    margin = 0.3  # rotate a bit more than 90 degrees.
     x_mean = np.mean(np.abs(cube_tip_positions[:, 0]))
     y_mean = np.mean(np.abs(cube_tip_positions[:, 1]))
     if x_mean > y_mean:
@@ -182,15 +183,15 @@ def pitch_rotation_axis_and_angle(cube_tip_positions):
     if rotate_axis == "x":
         idx = np.argmax(np.abs(cube_tip_positions[:, 1]))
         if cube_tip_positions[idx, 1] > 0:
-            rotate_angle = np.pi / 2
+            rotate_angle = np.pi / 2 * (1 + margin)
         else:
-            rotate_angle = -np.pi / 2
+            rotate_angle = -np.pi / 2 * (1 + margin)
     else:
         idx = np.argmax(np.abs(cube_tip_positions[:, 0]))
         if cube_tip_positions[idx, 0] > 0:
-            rotate_angle = -np.pi / 2
+            rotate_angle = -np.pi / 2 * (1 + margin)
         else:
-            rotate_angle = np.pi / 2
+            rotate_angle = np.pi / 2 * (1 + margin)
 
     return rotate_axis, rotate_angle
 
