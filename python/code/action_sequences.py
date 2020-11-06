@@ -63,7 +63,8 @@ class ScriptedActions:
 
     def add_pitch_rotation(self, obs, rotate_axis, rotate_angle, coef=0.6):
         grasp_target_cube_positions = self.cube_tip_positions * coef
-        rotate_step = np.pi / 30
+        rotate_step = np.sign(rotate_angle) * np.pi / 30
+        print(f'add_pitch_rotation: rotate_axis {rotate_axis}\trotate_angle {rotate_angle}')
         for i in range(int(rotate_angle / rotate_step)):
             rot_angle = i * rotate_step
             rot = R.from_euler(rotate_axis, rot_angle)
