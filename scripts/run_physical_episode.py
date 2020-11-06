@@ -37,8 +37,12 @@ import torch
 from code.residual_ppo import ResidualPPO2
 
 
+def use_ppo(difficulty):
+    return difficulty in [1, 2, 3, 4] and False
+
+
 def _init_env_and_policy(goal_pose_json, difficulty):
-    if difficulty in [1, 2, 3, 4]:
+    if use_ppo(difficulty):
         # HACK to get the path to the root directory
         root_dir = os.path.dirname(os.path.realpath(__file__))
         if difficulty == 4:
@@ -48,9 +52,9 @@ def _init_env_and_policy(goal_pose_json, difficulty):
         bindings = [
             f'make_pybullet_env.goal_pose={goal_pose_json}',
             f'make_pybullet_env.goal_difficulty={difficulty}',
-            f'make_pybullet_env.reward_fn="task{difficulty}_competition_reward"',
+            'make_pybullet_env.reward_fn="competition_reward"',
             'make_pybullet_env.termination_fn="no_termination"',
-            f'make_pybullet_env.initializer="random_init"',
+            'make_pybullet_env.initializer="random_init"',
             'make_pybullet_env.visualization=False',
             'make_pybullet_env.monitor=False',
             'make_pybullet_env.sim=False',
@@ -71,7 +75,7 @@ def _init_env_and_policy(goal_pose_json, difficulty):
             'action_space': 'torque_and_position',
             'frameskip': 3,
             'residual': True,
-            'reward_fn': f'task{difficulty}_competition_reward',
+            'reward_fn': 'competition_reward',
             'termination_fn': 'no_termination',
             'initializer': 'random_init',
             'monitor': False,
@@ -109,7 +113,7 @@ def main():
     # )
 
     env, ppo = _init_env_and_policy(goal_pose_json, difficulty)
-    if difficulty in [1, 2, 3, 4]:
+    if ppo is not None:
         # run residual policy
         obs = env.reset()
         done = False

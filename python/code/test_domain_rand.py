@@ -43,6 +43,8 @@ def main(args):
         start = time.time()
         is_done = False
         observation = env.reset()
+        if env.planning_fc_policy.fc_policy.viz:
+            env.planning_fc_policy.fc_policy.viz.reset(observation)
         accumulated_reward = 0
         aligning_steps.append(env.unwrapped.step_count)
 

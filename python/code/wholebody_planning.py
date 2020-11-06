@@ -63,7 +63,8 @@ class WholeBodyPlanner:
 
         goal_ori = p.getEulerFromQuaternion(goal_quat)
         target_pose = np.concatenate([goal_pos, goal_ori])
-        grasps = GraspSampler(self.env, obs, mu=mu, slacky_collision=True).get_heurisic_grasps(cube_halfwidth)
+        grasp_sampler = GraspSampler(self.env, obs, mu=mu, slacky_collision=True)
+        grasps = grasp_sampler.get_heurisic_grasps(cube_halfwidth)
         org_joint_conf = obs['robot_position']
         org_joint_vel = obs['robot_velocity']
 
@@ -73,14 +74,22 @@ class WholeBodyPlanner:
         # else:
         #     vis_cubeori = None
 
+        print("WHOLEBODY PLANNING")
+        print(f"NUM GRASPS: {len(grasps)}")
         counter = -1
         cube_path = None
+        if not use_ori:
+            print("CHANGING GOAL ORIENTATION...")
+            use_ori = True
+            goal_ori = p.getEulerFromQuaternion(obs['object_orientation'])
+            target_pose = np.concatenate([goal_pos, goal_ori])
         from code.utils import keep_state
         while cube_path is None and counter < retry_grasp:
             retry_count = max(0, counter)
             goal_threshold = ((retry_count / retry_grasp)
                               * (max_goal_threshold - min_goal_threshold)
                               + min_goal_threshold)
+            print(counter, goal_threshold)
             for cube_tip_positions, current_tip_positions, joint_conf in grasps:
                 with keep_state(self.env):
                     self.env.platform.simfinger.reset_finger_positions_and_velocities(joint_conf)
