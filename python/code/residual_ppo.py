@@ -20,7 +20,7 @@ from trifinger_simulation.tasks import move_cube
 @gin.configurable
 def make_pybullet_env(nenv, goal_difficulty, action_space, frameskip=1,
                       visualization=False, reward_fn=None, termination_fn=None,
-                      initializer=None, episode_length=120000, residual=False,
+                      initializer=None, episode_length=100000, residual=False,
                       monitor=False, seed=0, norm_observations=False,
                       goal_pose=None, sim=True, randomize=False):
 
