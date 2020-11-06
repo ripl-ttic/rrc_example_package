@@ -173,6 +173,8 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
         print('init_cube_pos', obs['object_position'])
         print('init_cube_ori', obs['object_orientation'])
+        print('goal_pos', obs['goal_object_position'])
+        print('goal_ori', obs['goal_object_orientation'])
         self.env.save_custom_logs()
 
         # flip the cube
@@ -222,6 +224,11 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         self.action_log['base_torque'].append(self.scripted_action)
         self.action_log['clipped_torque'].append(action)
         obs, reward, done, info = self.env.step(action)
+
+        # save action logs
+        if done:
+            self.env.register_custom_log('action_log', self.action_log)
+            self.env.save_custom_logs()
         self.scripted_action = self.pi(obs)
         return self._add_action_to_obs(obs, self.scripted_action), reward, done, info
 
@@ -362,6 +369,8 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
         print('init_cube_pos', obs['object_position'])
         print('init_cube_ori', obs['object_orientation'])
+        print('goal_pos', obs['goal_object_position'])
+        print('goal_ori', obs['goal_object_orientation'])
         self.env.save_custom_logs()
         init_cube_manip = self._choose_init_cube_manip(obs)
 
@@ -455,6 +464,11 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         #         obs, reward, done, info = self.env.step(action['torque'])
         # else:
         #     obs, reward, done, info = self.env.step(action)
+
+        # save action logs
+        if done:
+            self.env.register_custom_log('action_log', self.action_log)
+            self.env.save_custom_logs()
         self._timestep += 1
         self._maybe_update_cube_ori_viz(obs)
         self._base_action = self.planning_fc_policy.get_action(obs, self._timestep)
