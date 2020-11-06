@@ -127,16 +127,17 @@ class CubeManipulator:
 
             # try multiple fingertip assignments for some corner cases
             _, _, inds_by_cost = assign_positions_to_fingers(base_tip_pos, fk=self.env.platform.forward_kinematics)
+            org_cube_tip_positions = np.copy(cube_tip_positions)
             for i, inds in enumerate(inds_by_cost):
-                cube_tip_positions = cube_tip_positions[inds, :]
+                cube_tip_positions = org_cube_tip_positions[inds, :]
                 try:
                     obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
+                    break
                 except ValueError:
                     # raise an Error if heuristic_grasp_approach fails with all fingertip assignments.
                     if i == len(inds_by_cost) - 1:
                         raise RuntimeError('heuristic grasp approach failed with all fingertip assignments')
                     print(f'tip-assignment: {inds} did not work. trying next best tip-assignments')
-                    continue
 
             print("pitching cube...")
             num_repeat = 5 if self.env.simulation else 5 * 10
