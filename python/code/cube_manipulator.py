@@ -124,11 +124,20 @@ class CubeManipulator:
             print('base_tip_pos', base_tip_pos)
             self.env.register_custom_log('pitch_grasp_positions', base_tip_pos)
             self.env.save_custom_logs()
-            _, inds = assign_positions_to_fingers(base_tip_pos, fk=self.env.platform.forward_kinematics)
-            cube_tip_positions = cube_tip_positions[inds, :]
 
+            # try multiple fingertip assignments for some corner cases
+            _, _, inds_by_cost = assign_positions_to_fingers(base_tip_pos, fk=self.env.platform.forward_kinematics)
+            for i, inds in enumerate(inds_by_cost):
+                cube_tip_positions = cube_tip_positions[inds, :]
+                try:
+                    obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
+                except ValueError:
+                    # raise an Error if heuristic_grasp_approach fails with all fingertip assignments.
+                    if i == len(inds_by_cost) - 1:
+                        raise RuntimeError('heuristic grasp approach failed with all fingertip assignments')
+                    print(f'tip-assignment: {inds} did not work. trying next best tip-assignments')
+                    continue
 
-            obs = self.heuristic_grasp_approach(obs, cube_tip_positions=cube_tip_positions)
             print("pitching cube...")
             num_repeat = 5 if self.env.simulation else 5 * 10
             obs = self.pitching_cube(obs, cube_tip_positions, num_repeat=num_repeat, final_pitch=(i == pitch_times - 1))
@@ -198,7 +207,8 @@ class CubeManipulator:
         goal_quat =  (R.from_euler('Z', angle_clip) * R.from_quat(obs['object_orientation'])).as_quat()
 
         planner = WholeBodyPlanner(self.env)
-        path = planner.plan(obs, goal_pos=obs['object_position'], goal_quat=goal_quat, retry_grasp=1000, use_incremental_rrt=True)
+        path = planner.plan(obs, goal_pos=obs['object_position'], goal_quat=goal_quat, retry_grasp=50,
+                            min_goal_threshold=0.02, max_goal_threshold=0.03)
 
         cube_tip_positions = path.cube_tip_pos
         cube_pose = path.cube[0]
@@ -259,6 +269,8 @@ class CubeManipulator:
                                                                       shrink_region=0.2)
         action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
         pregrasp_joint_conf, pregrasp_tip_pos = self.get_safe_pregrasp(cube_tip_positions, obs)
+        if pregrasp_joint_conf is None:
+            raise ValueError('Feasible heuristic grasp approach is not found.')
 
         # if the pregrasp_joint_conf is achievable with a direct motion, just do that
         # otherwise, temporary move the fingertips above the cube, and then move the tips to the target positions.
@@ -282,7 +294,7 @@ class CubeManipulator:
         obs = self._run_planned_actions(obs, act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
-    def get_safe_pregrasp(self, cube_tip_positions, obs, candidate_margins=[1.1, 1.3, 1.5, 1.8, 2.0]):
+    def get_safe_pregrasp(self, cube_tip_positions, obs, candidate_margins=[1.1, 1.3, 1.5, 1.7]):
         pregrasp_tip_pos = []
         pregrasp_jconfs = []
         ik_utils = IKUtils(self.env)
@@ -304,8 +316,9 @@ class CubeManipulator:
 
         if len(pregrasp_tip_pos) == 0:
             print('warning: no safe pregrasp pose with a margin')
-            pregrasp_tip_pos = [T_cube_to_base(cube_tip_positions * candidate_margins[0])]
-            pregrasp_jconfs = [ik_utils.sample_ik(pregrasp_tip_pos[0], sort_tips=False)[0]]
+            # pregrasp_tip_pos = [T_cube_to_base(cube_tip_positions * candidate_margins[0])]
+            # pregrasp_jconfs = [ik_utils.sample_ik(pregrasp_tip_pos[0], sort_tips=False)[0]]
+            return None, None
 
         return pregrasp_jconfs[-1], pregrasp_tip_pos[-1]
 

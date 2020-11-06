@@ -524,7 +524,7 @@ class IKUtils:
 
         with keep_state(self.env):
             if sort_tips:
-                target_tip_positions, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
+                target_tip_positions, _, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
             collision_fn = self._get_collision_fn(slacky_collision)
             sample_fn = self._get_sample_fn()
             solutions = sample_multiple_ik_with_collision(self.ik, collision_fn, sample_fn,
@@ -538,15 +538,16 @@ class IKUtils:
 
         with keep_state(self.env):
             if sort_tips:
-                target_tip_positions, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
+                target_tip_positions, _, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
             sample_fn = self._get_sample_fn()
             solutions = sample_multiple_ik_with_collision(self.ik, no_collision_fn, sample_fn,
                                                           target_tip_positions, num_samples=3)
             return solutions
 
-    def _get_collision_fn(self, slacky_collision):
+    def _get_collision_fn(self, slacky_collision, diagnosis=False):
         from pybullet_planning.interfaces.robots.collision import get_collision_fn
-        return get_collision_fn(**self._get_collision_conf(slacky_collision))
+        import functools
+        return functools.partial(get_collision_fn(**self._get_collision_conf(slacky_collision)), diagnosis=diagnosis)
 
     def _get_collision_conf(self, slacky_collision):
         from code.const import COLLISION_TOLERANCE
@@ -662,14 +663,16 @@ def complete_joint_configs(start, goal, unit_rad=0.008):
 def assign_positions_to_fingers(tips, fk):
     init_tip_pos = fk(trifingerpro_limits.robot_position.default)
     min_cost = 1000000
-    opt_tips = []
-    opt_inds = [0, 1, 2]
+    cost_to_inds = {}
     for v in itertools.permutations([0, 1, 2]):
         sorted_tips = tips[v, :]
         cost = np.linalg.norm(sorted_tips - init_tip_pos)
-        if min_cost > cost:
-            min_cost = cost
-            opt_tips = sorted_tips
-            opt_inds = v
+        cost_to_inds[cost] = v
 
-    return opt_tips, opt_inds
+    inds_sorted_by_cost = [val for key, val in sorted(cost_to_inds.items(), key=lambda x: x[0])]
+    print([(key, val) for key, val in sorted(cost_to_inds.items(), key=lambda x: x[0])])
+    opt_inds = inds_sorted_by_cost[0]
+    opt_tips = tips[opt_inds, :]
+
+    # verbose output
+    return opt_tips, opt_inds, inds_sorted_by_cost
