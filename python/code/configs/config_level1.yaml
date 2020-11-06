@@ -4,3 +4,7 @@ base_config: python/code/configs/residual_ppo.gin
 gin_bindings:
     make_pybullet_env.goal_difficulty: 1
     make_pybullet_env.termination_fn: position_close_to_goal
+    make_pybullet_env.randomize: True
+    make_pybullet_env.action_space: 'torque_and_position'
+
+    ResidualPPO2.policy_fn: "@recurrent_torque_and_position_policy_fn"

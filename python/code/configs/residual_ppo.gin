@@ -1,4 +1,5 @@
 import code.residual_ppo
+import code.networks
 
 train.algorithm = @ResidualPPO2
 train.maxt = 100000000
@@ -14,13 +15,13 @@ optim.Adam.betas = (0.9, 0.999)
 optim.Adam.eps = 1e-5
 
 ResidualPPO2.env_fn = @make_pybullet_env
-ResidualPPO2.policy_fn = @torque_and_position_policy_fn
+ResidualPPO2.policy_fn = @policy_fn
 ResidualPPO2.value_fn = @value_fn
-ResidualPPO2.nenv = 32
+ResidualPPO2.nenv = 16
 ResidualPPO2.eval_num_episodes = 100
 ResidualPPO2.record_num_episodes = 0
 ResidualPPO2.batch_size = 512
-ResidualPPO2.rollout_length = 128
+ResidualPPO2.rollout_length = 256
 ResidualPPO2.gamma = 0.99
 ResidualPPO2.lambda_ = 0.95
 ResidualPPO2.norm_advantages = True
@@ -37,13 +38,13 @@ ResidualPPO2.gpu = True
 Checkpointer.ckpt_period = 100000
 
 make_pybullet_env.goal_difficulty = 3
-make_pybullet_env.action_space = "torque_and_position"
+make_pybullet_env.action_space = "torque"
 make_pybullet_env.frameskip = 3
 make_pybullet_env.visualization = False
 make_pybullet_env.reward_fn = "training_reward"
 make_pybullet_env.termination_fn = "position_close_to_goal"
 make_pybullet_env.initializer = "random_init"
-make_pybullet_env.episode_length = 120000
+make_pybullet_env.episode_length = 3750
 make_pybullet_env.residual = True
 make_pybullet_env.monitor = False
 make_pybullet_env.seed = 0

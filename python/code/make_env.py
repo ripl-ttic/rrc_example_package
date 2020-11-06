@@ -96,5 +96,6 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
             )
         else:
             raise ValueError(f"Can't do residual learning with {action_space}")
-    env = wrappers.FlatObservationWrapper(env)
+    if not randomize:
+        env = wrappers.FlatObservationWrapper(env)
     return env

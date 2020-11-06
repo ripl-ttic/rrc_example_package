@@ -25,9 +25,15 @@ if code_dir is None:
 
 if not os.path.exists(ws_dir):
     os.makedirs(os.path.join(ws_dir, 'src'))
-    shutil.copytree(code_dir, os.path.join(ws_dir, 'src', 'usercode'),
+    shutil.copytree(os.path.join(code_dir, 'python'),
+                    os.path.join(ws_dir, 'src', 'usercode', 'python'),
                     ignore=ignore_patterns("log*", "*.sif"),
                     ignore_dangling_symlinks=True)
+    shutil.copytree(os.path.join(code_dir, 'scripts'),
+                    os.path.join(ws_dir, 'src', 'usercode', 'scripts'))
+    for file in ['CMakeLists.txt', 'goal.json', 'package.xml', 'setup.py']:
+        shutil.copyfile(os.path.join(code_dir, file),
+                        os.path.join(ws_dir, 'src', 'usercode', file))
 
     build_cmd = [
         "singularity",

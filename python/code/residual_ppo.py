@@ -1,13 +1,10 @@
 """Define networks and ResidualPPO2."""
-import json
 from dl.rl import PolicyBase, ValueFunctionBase, Policy, ValueFunction
 from dl.rl import VecEpisodeLogger, VecRewardNormWrapper, RolloutDataManager
 from dl.rl.util import misc, rl_evaluate, rl_record
-from dl.modules import DiagGaussian, ProductDistribution, Normal
 from dl import Checkpointer, logger, Algorithm, nest
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import gin
 import os
 import time
@@ -35,7 +32,6 @@ def make_pybullet_env(nenv, goal_difficulty, action_space, frameskip=1,
         'position': goal.position,
         'orientation': goal.orientation
     }
-
 
     def _env(rank):
         def _thunk():
@@ -71,135 +67,6 @@ def make_pybullet_env(nenv, goal_difficulty, action_space, frameskip=1,
     return env
 
 
-class ScaledNormal(Normal):
-    def __init__(self, loc, scale, fac):
-        super().__init__(loc, scale)
-        self.fac = fac
-
-    def mode(self):
-        return self.mean * self.fac
-
-    def sample(self):
-        return super().sample() * self.fac
-
-    def rsample(self):
-        return super().rsample() * self.fac
-
-    def log_prob(self, ac):
-        return super().log_prob(ac / self.fac)
-
-    def to_tensors(self):
-        return {'loc': self.mean, 'scale': self.stddev}
-
-    def from_tensors(self, tensors):
-        return ScaledNormal(tensors['loc'], tensors['scale'], fac=self.fac)
-
-
-class PolicyNet(PolicyBase):
-    """Policy network."""
-
-    def __init__(self, observation_space, action_space, torque_std=0.05):
-        self.torque_std = torque_std
-        super().__init__(observation_space, action_space)
-
-    def build(self):
-        """Build."""
-        self.fc1 = nn.Linear(self.observation_space.shape[0], 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.dist = DiagGaussian(256, self.action_space.shape[0],
-                                 constant_log_std=False)
-        for p in self.dist.fc_mean.parameters():
-            nn.init.constant_(p, 0.)
-
-    def forward(self, x):
-        """Forward."""
-        x = x.float()
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        dist = self.dist(x)
-        return ScaledNormal(dist.mean, dist.stddev, fac=self.torque_std)
-
-
-class TorqueAndPositionPolicyNet(PolicyBase):
-    """Policy network."""
-
-    def __init__(self, observation_space, action_space, torque_std=0.05,
-                 position_std=0.001):
-        self.torque_std = torque_std
-        self.position_std = position_std
-        super().__init__(observation_space, action_space)
-
-    def build(self):
-        """Build."""
-        self.fc1 = nn.Linear(self.observation_space.shape[0], 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.dist_torque = DiagGaussian(256,
-                                        self.action_space['torque'].shape[0],
-                                        constant_log_std=False)
-        self.dist_position = DiagGaussian(256,
-                                          self.action_space['position'].shape[0],
-                                          constant_log_std=False)
-        for p in self.dist_torque.fc_mean.parameters():
-            nn.init.constant_(p, 0.)
-        for p in self.dist_position.fc_mean.parameters():
-            nn.init.constant_(p, 0.)
-
-    def forward(self, x):
-        """Forward."""
-        x = x.float()
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        d_torque = self.dist_torque(x)
-        d_torque = ScaledNormal(d_torque.mean, d_torque.stddev,
-                                fac=self.torque_std)
-        d_position = self.dist_position(x)
-        d_position = ScaledNormal(d_position.mean, d_position.stddev,
-                                  fac=self.position_std)
-        return ProductDistribution({'torque': d_torque,
-                                    'position': d_position})
-
-
-class VFNet(ValueFunctionBase):
-    """Value Function."""
-
-    def build(self):
-        """Build."""
-        self.fc1 = nn.Linear(self.observation_space.shape[0], 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 256)
-        self.vf = nn.Linear(256, 1)
-
-    def forward(self, x):
-        """Forward."""
-        x = x.float()
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        return self.vf(x)
-
-
-@gin.configurable
-def policy_fn(env, torque_std=0.05):
-    """Create policy."""
-    return Policy(PolicyNet(env.observation_space, env.action_space,
-                            torque_std=torque_std))
-
-
-@gin.configurable
-def torque_and_position_policy_fn(env, torque_std=0.05, position_std=0.001):
-    """Create policy."""
-    return Policy(TorqueAndPositionPolicyNet(env.observation_space,
-                                             env.action_space,
-                                             torque_std=torque_std,
-                                             position_std=position_std))
-
-
-@gin.configurable
-def value_fn(env):
-    """Create value function network."""
-    return ValueFunction(VFNet(env.observation_space, env.action_space))
-
-
 class ResidualPPOActor(object):
     """Actor."""
 
@@ -233,7 +100,7 @@ class ResidualPPOActor(object):
                 'value': self.vf(ob).value,
                 'logp': outs.dist.log_prob(outs.action),
                 'dist': outs.dist.to_tensors()}
-        if outs.state_out:
+        if outs.state_out is not None:
             data['state'] = outs.state_out
         return data
 
