@@ -81,6 +81,11 @@ class WholeBodyPlanner:
         print(grasps)
         counter = -1
         cube_path = None
+        if not use_ori:
+            print("CHANGING GOAL ORIENTATION...")
+            use_ori = True
+            goal_ori = p.getEulerFromQuaternion(obs['object_orientation'])
+            target_pose = np.concatenate([goal_pos, goal_ori])
         from code.utils import keep_state
         while cube_path is None and counter < retry_grasp:
             retry_count = max(0, counter)
