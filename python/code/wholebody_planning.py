@@ -65,8 +65,6 @@ class WholeBodyPlanner:
         target_pose = np.concatenate([goal_pos, goal_ori])
         grasp_sampler = GraspSampler(self.env, obs, mu=mu, slacky_collision=True)
         grasps = grasp_sampler.get_heurisic_grasps(cube_halfwidth)
-        # n = 10 - len(grasps)
-        # grasps += [grasp_sampler(cube_halfwidth, 0.4) for _ in range(n)]
         org_joint_conf = obs['robot_position']
         org_joint_vel = obs['robot_velocity']
 
@@ -77,9 +75,7 @@ class WholeBodyPlanner:
         #     vis_cubeori = None
 
         print("WHOLEBODY PLANNING")
-        print("GRASPS")
-        print(grasps)
-        print(len(grasps))
+        print(f"NUM GRASPS: {len(grasps)}")
         counter = -1
         cube_path = None
         if not use_ori:
@@ -95,8 +91,6 @@ class WholeBodyPlanner:
                               + min_goal_threshold)
             print(counter, goal_threshold)
             for cube_tip_positions, current_tip_positions, joint_conf in grasps:
-                print('trying grasp...')
-                print("use_ori", use_ori)
                 with keep_state(self.env):
                     self.env.platform.simfinger.reset_finger_positions_and_velocities(joint_conf)
                     cube_path, joint_conf_path = plan_wholebody_motion(
