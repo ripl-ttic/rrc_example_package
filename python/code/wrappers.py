@@ -151,6 +151,7 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         self.cube_manipulator = CubeManipulator(env)
         self.is_level_4 = is_level_4
         self.__evaluation = evaluation
+        self.action_log = {'residual_torque': [], 'base_torque': [], 'clipped_torque': []}
 
     def _norm_actions(self, action):
         ts = TriFingerPlatform.spaces.robot_torque.gym
@@ -217,6 +218,9 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         action = self.scripted_action + torq_action
         action = np.clip(action, self.action_space.low,
                          self.action_space.high)
+        self.action_log['residual_torque'].append(torq_action)
+        self.action_log['base_torque'].append(self.scripted_action)
+        self.action_log['clipped_torque'].append(action)
         obs, reward, done, info = self.env.step(action)
         self.scripted_action = self.pi(obs)
         return self._add_action_to_obs(obs, self.scripted_action), reward, done, info
@@ -326,6 +330,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         self._prev_obs = None
         self._timestep = None
         self.__evaluation = evaluation
+        self.action_log = {'residual_torque': [], 'base_torque': [], 'clipped_torque': [], 'base_position': [], 'residual_position': [], 'clipped_position': []}
 
     def _norm_actions(self, action):
         ts = TriFingerPlatform.spaces.robot_torque.gym
@@ -380,10 +385,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
 
         # wholebody motion planning
         try:
-            self.env.register_custom_log('init_cube_pos', obs['object_position'])
-            self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
-            self.env.register_custom_log('goal_pos', obs['goal_object_position'])
-            self.env.register_custom_log('goal_ori', obs['goal_object_orientation'])
             # This does planning inside
             self.planning_fc_policy = self._instantiate_planning_fc_policy(obs)
         except Exception as e:
@@ -436,9 +437,15 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         torq_action = self._base_action['torque'] + res_action['torque']
         torq_action = np.clip(torq_action, torq_action_space.low,
                               torq_action_space.high)
+        self.action_log['base_torque'].append(self._base_action['torque'])
+        self.action_log['residual_torque'].append(res_action['torque'])
+        self.action_log['clipped_torque'].append(torq_action)
         position_action = self._base_action['position'] + res_action['position']
         position_action = np.clip(position_action, position_action_space.low,
                                   position_action_space.high)
+        self.action_log['base_position'].append(self._base_action['position'])
+        self.action_log['residual_position'].append(res_action['position'])
+        self.action_log['clipped_position'].append(position_action)
 
         action = {'torque': torq_action, 'position': position_action}
         obs, reward, done, info = self.env.step(action)
