@@ -24,6 +24,7 @@ ResidualPPO2.batch_size = 512
 ResidualPPO2.rollout_length = 256
 ResidualPPO2.gamma = 0.99
 ResidualPPO2.lambda_ = 0.95
+ResidualPPO2.ent_coef = 0.0
 ResidualPPO2.norm_advantages = True
 ResidualPPO2.opt_pi = @pi/optim.Adam
 ResidualPPO2.opt_vf = @vf/optim.Adam
