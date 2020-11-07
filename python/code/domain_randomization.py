@@ -16,7 +16,7 @@ DYNAMICS_PARAMS = {
     'contactDamping': 0.05
 }
 
-CUBE_MASS = 0.020  # This number is hardcoded in trifinger_simulation.trifinger_platform
+CUBE_MASS = 0.094  # This number is the weight of the cube used with the real robot
 
 
 class Parameter(object):
@@ -57,7 +57,7 @@ class ParameterDict(object):
 class TriFingerRandomizer(object):
     def __init__(self,
                  dynamics_scale=0.1,
-                 cube_mass_scale=3.0,
+                 cube_mass_scale=1.5,
                  position_scale=0.01,
                  velocity_scale=0.005,
                  torque_scale=0.005,

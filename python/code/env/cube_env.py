@@ -15,6 +15,7 @@ from trifinger_simulation.tasks import move_cube
 from .reward_fns import competition_reward
 from .pinocchio_utils import PinocchioUtils
 from code.const import CUSTOM_LOGDIR, INIT_JOINT_CONF
+import pybullet as p
 
 
 class ActionType(enum.Enum):
@@ -299,6 +300,10 @@ class RealRobotCubeEnv(gym.GoalEnv):
             visualization=self.visualization,
             initial_object_pose=initial_object_pose,
         )
+        # use mass of real cube
+        p.changeDynamics(bodyUniqueId=self.platform.cube.block, linkIndex=-1,
+                         physicsClientId=self.platform.simfinger._pybullet_client_id,
+                         mass=0.094)
         # visualize the goal
         if self.visualization:
             self.goal_marker = trifinger_simulation.visual_objects.CubeMarker(
