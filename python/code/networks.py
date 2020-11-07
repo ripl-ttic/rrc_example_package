@@ -121,18 +121,18 @@ class RecurrentPolicyNet(PolicyBase):
 
     def forward(self, ob, state_in=None):
         """Forward."""
-        if isinstance(ob, PackedSequence):
-            x = ob.data
-        else:
-            x = ob
+        def _unpack(t):
+            return t.data if isinstance(t, PackedSequence) else t
+        x = nest.map_structure(_unpack, ob)
         x = self.obs_filter.get_policy_observation(x)
         x = x.float()
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        if isinstance(ob, PackedSequence):
-            x = PackedSequence(x, batch_sizes=ob.batch_sizes,
-                               sorted_indices=ob.sorted_indices,
-                               unsorted_indices=ob.unsorted_indices)
+        zz = nest.flatten(ob)[0]
+        if isinstance(zz, PackedSequence):
+            x = PackedSequence(x, batch_sizes=zz.batch_sizes,
+                               sorted_indices=zz.sorted_indices,
+                               unsorted_indices=zz.unsorted_indices)
         else:
             x = x.unsqueeze(0)
         if state_in is None:
@@ -218,18 +218,18 @@ class RecurrentTorqueAndPositionPolicyNet(PolicyBase):
 
     def forward(self, ob, state_in=None):
         """Forward."""
-        if isinstance(ob, PackedSequence):
-            x = ob.data
-        else:
-            x = ob
+        def _unpack(t):
+            return t.data if isinstance(t, PackedSequence) else t
+        x = nest.map_structure(_unpack, ob)
         x = self.obs_filter.get_policy_observation(x)
         x = x.float()
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        if isinstance(ob, PackedSequence):
-            x = PackedSequence(x, batch_sizes=ob.batch_sizes,
-                               sorted_indices=ob.sorted_indices,
-                               unsorted_indices=ob.unsorted_indices)
+        zz = nest.flatten(ob)[0]
+        if isinstance(zz, PackedSequence):
+            x = PackedSequence(x, batch_sizes=zz.batch_sizes,
+                               sorted_indices=zz.sorted_indices,
+                               unsorted_indices=zz.unsorted_indices)
         else:
             x = x.unsqueeze(0)
         if state_in is None:
@@ -266,8 +266,9 @@ class VFNet(ValueFunctionBase):
 
     def forward(self, x):
         """Forward."""
-        if isinstance(x, PackedSequence):
-            x = x.data
+        def _unpack(t):
+            return t.data if isinstance(t, PackedSequence) else t
+        x = nest.map_structure(_unpack, x)
         x = self.obs_filter.get_value_fn_observation(x)
         x = x.float()
         x = F.relu(self.fc1(x))
