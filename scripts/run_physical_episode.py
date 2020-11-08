@@ -41,7 +41,7 @@ def use_ppo(difficulty):
     return difficulty in [1, 2, 3, 4] and False
 
 
-def _init_env_and_policy(goal_pose_json, difficulty):
+def _init_env_and_policy(goal_pose_json, difficulty, training=True):
     if use_ppo(difficulty):
         # HACK to get the path to the root directory
         root_dir = os.path.dirname(os.path.realpath(__file__))
@@ -57,7 +57,8 @@ def _init_env_and_policy(goal_pose_json, difficulty):
             'make_pybullet_env.initializer="random_init"',
             'make_pybullet_env.visualization=False',
             'make_pybullet_env.monitor=False',
-            'make_pybullet_env.sim=False',
+            f'make_pybullet_env.sim={training}',
+            f'make_pybullet_env.skip_motions={training}',
         ]
         from code.utils import set_seed
         set_seed(0)
@@ -79,14 +80,17 @@ def _init_env_and_policy(goal_pose_json, difficulty):
             'termination_fn': 'no_termination',
             'initializer': 'random_init',
             'monitor': False,
+            'visualization': False,
             'randomize': False,
+            'sim': training,
+            'skip_motions': training,
             'rank': 0
         }
 
         from code.utils import set_seed
         set_seed(0)
         goal_pose_dict = json.loads(goal_pose_json)
-        env = make_training_env(goal_pose_dict, difficulty, sim=False, visualization=False, **eval_config)
+        env = make_training_env(goal_pose_dict, difficulty, **eval_config)
         # override env with fixed initializer
         # env.unwrapped.initializer = initializer
         return env, None
@@ -112,7 +116,8 @@ def main():
     #     difficulty, initial_pose, goal_pose
     # )
 
-    env, ppo = _init_env_and_policy(goal_pose_json, difficulty)
+    training = True  # If True, this sets 'sim' and 'skip_motions' to True
+    env, ppo = _init_env_and_policy(goal_pose_json, difficulty, training=training)
     if ppo is not None:
         # run residual policy
         obs = env.reset()

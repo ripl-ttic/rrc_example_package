@@ -19,7 +19,7 @@ def make_pybullet_env(nenv, goal_difficulty, action_space, frameskip=1,
                       visualization=False, reward_fn=None, termination_fn=None,
                       initializer=None, episode_length=100000, residual=False,
                       monitor=False, seed=0, norm_observations=False,
-                      goal_pose=None, sim=True, randomize=False):
+                      goal_pose=None, sim=True, randomize=False, skip_motions=False):
 
     # dummy goal dict
     goal = move_cube.sample_goal(goal_difficulty)
@@ -49,7 +49,8 @@ def make_pybullet_env(nenv, goal_difficulty, action_space, frameskip=1,
                 residual=residual,
                 rank=rank,
                 monitor=monitor,
-                randomize=randomize
+                randomize=randomize,
+                skip_motions=skip_motions
             )
             env = EpisodeInfo(env)
             env.seed(seed + rank)

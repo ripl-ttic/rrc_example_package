@@ -58,10 +58,29 @@ class CubeManipulator:
 
         return obs
 
-    def align_rotation(self, obs, yaw_planning=True):
+    def align_rotation(self, obs, yaw_planning=True, skip=False):
         from code.align_rotation import cube_rotation_aligned, cube_centered
 
         step_start = self.env.unwrapped.step_count
+
+        if skip:
+            import random
+            from code.utils import sample_uniform_from_circle
+            assert self.env.simulation
+            print('skip is True in CubeManipulator.align_rotation. Skipping align rotation.')
+
+            # sample orientation
+            projected_goal_ori = project_cube_xy_plane(obs['goal_object_orientation'])
+            z_rot_noise = R.from_euler('z', np.pi / 2 * random.random())
+            ori = (R.from_quat(projected_goal_ori) * z_rot_noise).as_quat()
+            obs['object_orientation'] = ori
+
+            # sample position
+            xy_position = sample_uniform_from_circle(radius=0.07)
+            obs['object_position'][:2] = xy_position
+
+            self.env.platform.cube.set_state(obs['object_position'], obs['object_orientation'])
+            return obs
 
         #centering cube
         if not cube_centered(obs):
@@ -258,7 +277,7 @@ class CubeManipulator:
         obs = self._run_planned_actions(obs, finer_act_seq, ActionType.POSITION, frameskip=1)
         return obs
 
-    def heuristic_grasp_approach(self, obs, cube_tip_positions=None):
+    def heuristic_grasp_approach(self, obs, cube_tip_positions=None, skip=False):
         from code.utils import repeat
         from code.action_sequences import ScriptedActions
 
@@ -287,7 +306,19 @@ class CubeManipulator:
         action_sequence.add_grasp(obs)
         act_seq = self.tip_positions_to_actions(action_sequence.get_tip_sequence(), obs)
 
-        num_repeat = 8 if self.env.simulation else 8 * 4
+        if skip:
+            assert self.env.simulation
+            print("skip is True in CubeManipulator.heuristic_grasp_approach. Skipping the grasp motion.")
+            update = {
+                "robot_position": act_seq[-1],
+                "robot_velocity": act_seq[-1] * 0,
+                "robot_tip_positions": self.env.platform.forward_kinematics(act_seq[-1]),
+            }
+            obs.update(update)
+            self.env.platform.simfinger.reset_finger_positions_and_velocities(obs['robot_position'])
+            return obs
+
+        num_repeat = 4 if self.env.simulation else 8 * 4
         act_seq = repeat(act_seq, num_repeat)
         num_repeat = 40 if self.env.simulation else 400
         act_seq += repeat([act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose

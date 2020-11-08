@@ -37,7 +37,7 @@ def get_termination_fn(name):
 def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1,
                       sim=False, visualization=False, reward_fn=None,
                       termination_fn=None, initializer=None, episode_length=100000,
-                      residual=False, rank=0, monitor=False, randomize=False):
+                      residual=False, rank=0, monitor=False, randomize=False, skip_motions=False):
     is_level_4 = goal_difficulty == 4
     reward_fn = get_reward_fn(reward_fn)
     initializer = get_initializer(initializer)(goal_difficulty)
@@ -82,8 +82,9 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
     if residual:
         if action_space == 'torque':
             # env = JointConfInitializationWrapper(env, heuristic=grasp)
-            env = wrappers.ResidualLearningFCWrapper(env, apply_torques=is_level_4,
-                                                     is_level_4=is_level_4)
+            env = wrappers.ResidualLearningFCWrapper(
+                env, apply_torques=is_level_4, is_level_4=is_level_4, skip_motions=skip_motions
+            )
         elif action_space == 'torque_and_position':
             env = wrappers.ResidualLearningMotionPlanningFCWrapper(
                 env,
@@ -92,7 +93,8 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
                 align_goal_ori=is_level_4,
                 use_rrt=is_level_4,
                 init_cube_manip='flip_and_grasp' if is_level_4 else 'grasp',
-                evaluation=False
+                evaluation=False,
+                skip_motions=skip_motions
             )
         else:
             raise ValueError(f"Can't do residual learning with {action_space}")

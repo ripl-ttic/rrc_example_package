@@ -136,7 +136,7 @@ class ResidualLearningFCWrapper(gym.Wrapper):
     Need JointConfInitializationWrapper under this wrapper.
     '''
 
-    def __init__(self, env, apply_torques, evaluation=False, is_level_4=False):
+    def __init__(self, env, apply_torques, evaluation=False, is_level_4=False, skip_motions=False):
         super().__init__(env)
         from code.cube_manipulator import CubeManipulator
         assert self.env.action_type == ActionType.TORQUE
@@ -152,6 +152,7 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         self.is_level_4 = is_level_4
         self.__evaluation = evaluation
         self.action_log = {'residual_torque': [], 'base_torque': [], 'clipped_torque': []}
+        self.skip_motions = skip_motions
 
     def _norm_actions(self, action):
         ts = TriFingerPlatform.spaces.robot_torque.gym
@@ -180,7 +181,8 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         # flip the cube
         if self.is_level_4:
             try:
-                obs = self.cube_manipulator.align_rotation(obs)
+                skip = bool(self.env.simulation and self.skip_motions)
+                obs = self.cube_manipulator.align_rotation(obs, skip=skip)
             except Exception as e:
                 print(EXCEP_MSSG.format(message='cube flipping seemed to fail...', error=str(e)))
                 # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
@@ -197,7 +199,8 @@ class ResidualLearningFCWrapper(gym.Wrapper):
 
         # approach a grasp pose
         try:
-            obs = self._grasp_approach(obs)
+            skip = bool(self.env.simulation and self.skip_motions)
+            obs = self._grasp_approach(obs, skip=skip)
         except Exception as e:
             print(EXCEP_MSSG.format(message='planning to grasp the cube seeemed to fail...', error=str(e)))
             # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
@@ -237,12 +240,12 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         obs = grasp_force_control(self.env, obs, self.pi, grasp_force=grasp_force)
         return obs
 
-    def _grasp_approach(self, obs):
+    def _grasp_approach(self, obs, skip=False):
         # obs = self.cube_manipulator.grasp_approach(
         #     obs,
         #     margin_coef=2.0,
         #     n_trials=1)
-        obs = self.cube_manipulator.heuristic_grasp_approach(obs)
+        obs = self.cube_manipulator.heuristic_grasp_approach(obs, skip=skip)
         return obs
 
 
@@ -305,7 +308,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
     '''
     def __init__(self, env, apply_torques, action_repeat=2, align_goal_ori=True,
                  init_cube_manip='auto', use_rrt=False, use_incremental_rrt=False,
-                 evaluation=True, is_level_4=False):
+                 evaluation=True, is_level_4=False, skip_motions=False):
         super().__init__(env)
         from code.fc_force_control import ForceControlPolicy, Viz
         from code.cube_manipulator import CubeManipulator
@@ -338,6 +341,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         self._timestep = None
         self.__evaluation = evaluation
         self.action_log = {'residual_torque': [], 'base_torque': [], 'clipped_torque': [], 'base_position': [], 'residual_position': [], 'clipped_position': []}
+        self.skip_motions = skip_motions
 
     def _norm_actions(self, action):
         ts = TriFingerPlatform.spaces.robot_torque.gym
@@ -377,7 +381,8 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         # flip the cube
         if init_cube_manip == 'flip_and_grasp':
             try:
-                obs = self.cube_manipulator.align_rotation(obs)
+                skip = bool(self.env.simulation and self.skip_motions)
+                obs = self.cube_manipulator.align_rotation(obs, skip=skip)
             except Exception as e:
                 print(EXCEP_MSSG.format(message='cube flipping seemed to fail...', error=str(e)))
                 # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
@@ -413,7 +418,8 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         # approach a grasp pose
         if init_cube_manip in ['grasp', 'flip_and_grasp']:
             try:
-                obs = self._grasp_approach(obs)
+                skip = bool(self.env.simulation and self.skip_motions)
+                obs = self._grasp_approach(obs, skip=skip)
             except Exception as e:
                 print(EXCEP_MSSG.format(message='planning to grasp the cube seeemed to fail...', error=str(e)))
                 # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
@@ -495,7 +501,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         )
         return planning_fc_policy
 
-    def _grasp_approach(self, obs):
+    def _grasp_approach(self, obs, skip=False):
         # obs = self.cube_manipulator.grasp_approach(
         #     obs,
         #     cube_tip_pos=self.planning_fc_policy.get_cube_tip_pos(),
@@ -504,7 +510,8 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         #     n_trials=1)
         obs = self.cube_manipulator.heuristic_grasp_approach(
             obs,
-            cube_tip_positions=self.planning_fc_policy.get_cube_tip_pos()
+            cube_tip_positions=self.planning_fc_policy.get_cube_tip_pos(),
+            skip=skip
         )
         return obs
 

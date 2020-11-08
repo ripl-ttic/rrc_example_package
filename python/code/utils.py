@@ -676,3 +676,17 @@ def assign_positions_to_fingers(tips, fk):
 
     # verbose output
     return opt_tips, opt_inds, inds_sorted_by_cost
+
+def sample_uniform_from_circle(radius):
+    # copied from move_cube.sample_goal()
+    def random_xy(radius):
+        # sample uniform position in circle (https://stackoverflow.com/a/50746409)
+        radius = radius * np.sqrt(random.random())
+        theta = random.uniform(0, 2 * np.pi)
+
+        # x,y-position of the cube
+        x = radius * np.cos(theta)
+        y = radius * np.sin(theta)
+
+        return x, y
+    return np.asarray(random_xy(radius))
