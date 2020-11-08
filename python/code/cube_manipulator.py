@@ -23,12 +23,20 @@ class CubeManipulator:
             from code.utils import VisualMarkers
             self.vis_markers = VisualMarkers()
 
-    def move_to_center(self, obs, orientation=None, force_control=True, skip_planned_motions=False):
+    def move_to_center(self, obs, orientation=None, force_control=True, skip=False):
         center = (0, 0, 0)
         orientation = obs['object_orientation'] if orientation is None else orientation
-        return self.move_to_target(obs, center, orientation, force_control=force_control, avoid_top=True)
+        return self.move_to_target(obs, center, orientation, force_control=force_control, avoid_top=True, skip=skip)
 
-    def move_to_target(self, obs, target_pos, target_ori, force_control=True, skip_planned_motions=False, avoid_top=False, flipping=False):
+    def move_to_target(self, obs, target_pos, target_ori, force_control=True, avoid_top=False, skip=False):
+        if skip:
+            from code.utils import sample_uniform_from_circle
+            print('skip is True in CubeManipulator.move_to_target. Skipping move to target.')
+            xy_position = sample_uniform_from_circle(radius=0.07)
+            obs['object_position'][:2] = xy_position
+            self.env.platform.cube.set_state(obs['object_position'], obs['object_orientation'])
+            return obs
+
         # move to grasp pose
         print('approach to grasp pose...')
         obs = self.grasp_approach(obs, avoid_top=avoid_top, config_type='move_to_target')
@@ -881,8 +889,8 @@ def run_episode(args):
     goal_pos = obs['goal_object_position']
     goal_pos[2] += 0.01
     goal_ori = obs['object_orientation']  # NOTE: I'm using object ori, but not goal ori
-    cube_manipulator.move_to_target(obs, goal_pos, goal_ori)  #, skip_planned_motions=True)
-    # cube_manipulator.move_to_center(obs)  #, skip_planned_motions=True)
+    cube_manipulator.move_to_target(obs, goal_pos, goal_ori)
+    # cube_manipulator.move_to_center(obs)
 
 
 def run_align_episode(args):
