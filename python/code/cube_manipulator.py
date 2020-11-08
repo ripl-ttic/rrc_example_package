@@ -79,8 +79,8 @@ class CubeManipulator:
 
             # sample orientation
             projected_goal_ori = project_cube_xy_plane(obs['goal_object_orientation'])
-            z_rot_noise = R.from_euler('z', np.pi / 2 * random.random())
-            ori = (R.from_quat(projected_goal_ori) * z_rot_noise).as_quat()
+            z_rot_noise = R.from_euler('z', (np.pi / 2 * 0.70) * random.random())
+            ori = (z_rot_noise * R.from_quat(projected_goal_ori)).as_quat()
             obs['object_orientation'] = ori
 
             # sample position
