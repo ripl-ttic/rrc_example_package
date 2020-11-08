@@ -639,6 +639,10 @@ class RandomizedEnvWrapper(gym.Wrapper):
         ob_space = self.env.observation_space['robot_torque']
         obs['robot_torque'] = np.clip(obs['robot_torque'] + noise['robot_torque'],
                                       ob_space.low, ob_space.high)
+        # add noise to tip_force
+        ob_space = self.env.observation_space['tip_force']
+        obs['tip_force'] = np.clip(obs['tip_force'] + noise['tip_force'],
+                                   ob_space.low, ob_space.high)
 
         # use saved noisy object observation
         obs['object_position'] = self.noisy_cube_pose['position']

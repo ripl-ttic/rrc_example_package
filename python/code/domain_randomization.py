@@ -57,10 +57,12 @@ class ParameterDict(object):
 class TriFingerRandomizer(object):
     def __init__(self,
                  dynamics_scale=0.1,
-                 cube_mass_scale=1.5,
+                 cube_mass_scale=1.25,
                  position_scale=0.01,
                  velocity_scale=0.005,
                  torque_scale=0.005,
+                 tip_force_scale=0.015,
+                 tip_force_offset=0.095,
                  cube_rot_var=0.1,
                  cube_pos_var=0.001,
                  action_position=0.001,
@@ -72,14 +74,19 @@ class TriFingerRandomizer(object):
             dynamics_params.append(Parameter(name, low, high))
 
         dynamics_params.append(
-            Parameter('cube_mass', CUBE_MASS, cube_mass_scale * CUBE_MASS)
+            Parameter('cube_mass', (2 - cube_mass_scale) * CUBE_MASS, cube_mass_scale * CUBE_MASS)
         )
         self.dynamics_params = ParameterDict(*dynamics_params)
 
         self.robot_params = ParameterDict(*[
             Parameter('robot_position', 9 * [-position_scale], 9 * [position_scale]),
             Parameter('robot_velocity', 9 * [-velocity_scale], 9 * [velocity_scale]),
-            Parameter('robot_torque', 9 * [-torque_scale], 9 * [torque_scale]),
+            Parameter("robot_torque", 9 * [-torque_scale], 9 * [torque_scale]),
+            Parameter(
+                "tip_force",
+                3 * [tip_force_offset - tip_force_scale],
+                3 * [tip_force_offset + tip_force_scale],
+            ),
         ])
         self.cube_params = ParameterDict(*[
             Parameter('cube_pos', 3 * [-cube_pos_var], 3 * [cube_pos_var]),
