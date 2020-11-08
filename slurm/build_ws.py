@@ -20,7 +20,7 @@ if code_dir is None:
     raise ValueError("RRC_ROOT env variable not set.")
 
 image_path = os.getenv("RRC_IMAGE")
-if code_dir is None:
+if image_path is None:
     raise ValueError("RRC_IMAGE env variable not set.")
 
 if not os.path.exists(ws_dir):
