@@ -321,7 +321,7 @@ class TorquePDController(PDController):
 
 class CubePD(object):
     def __init__(self,
-                 mass=0.02,
+                 mass=0.094,
                  max_force=1.0,
                  max_torque=0.05,
                  force_gains=[100, 631],
