@@ -146,8 +146,10 @@ class ResidualLearningFCWrapper(gym.Wrapper):
         ob_space['base_action_torque'] = spaces.robot_torque.gym
         self.observation_space = gym.spaces.Dict(ob_space)
         self.observation_names.append("base_action_torque")
-        from code.fc_force_control import ForceControlPolicy
-        self.pi = ForceControlPolicy(self.env, apply_torques=apply_torques)
+        from code.fc_force_control import ForceControlPolicy, Viz
+        from code.const import MU
+        self.viz = Viz() if self.visualization else None
+        self.pi = ForceControlPolicy(self.env, apply_torques=apply_torques, mu=MU, viz=self.viz)
         self.cube_manipulator = CubeManipulator(env)
         self.is_level_4 = is_level_4
         self.__evaluation = evaluation
