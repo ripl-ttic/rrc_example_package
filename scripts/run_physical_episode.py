@@ -73,7 +73,7 @@ def _init_env_and_policy(goal_pose_json, difficulty, training=True):
 
     else:
         eval_config = {
-            'action_space': 'torque_and_position',
+            'action_space': 'torque',
             'frameskip': 3,
             'residual': True,
             'reward_fn': 'competition_reward',
@@ -116,7 +116,7 @@ def main():
     #     difficulty, initial_pose, goal_pose
     # )
 
-    training = True  # If True, this sets 'sim' and 'skip_motions' to True
+    training = False  # If True, this sets 'sim' and 'skip_motions' to True
     env, ppo = _init_env_and_policy(goal_pose_json, difficulty, training=training)
     if ppo is not None:
         # run residual policy
