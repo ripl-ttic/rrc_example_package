@@ -73,7 +73,7 @@ def _init_env_and_policy(goal_pose_json, difficulty, training=True):
 
     else:
         eval_config = {
-            'action_space': 'torque_and_position',
+            'action_space': 'torque',
             'frameskip': 3,
             'residual': True,
             'reward_fn': 'competition_reward',
