@@ -15,9 +15,9 @@ echo `date`
 mounts=`python slurm/build_ws.py $@`
 echo ${mounts}
 echo `date`
-mkdir -p /scratch/cbschaff
+mkdir -p /scratch/${USER}
 rand_char=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 5`
-img_file="/scratch/cbschaff/${rand_char}.sif"
+img_file="/scratch/${USER}/${rand_char}.sif"
 echo ${img_file}
 cp $RRC_IMAGE ${img_file}
 if [ $? -eq 0 ]
