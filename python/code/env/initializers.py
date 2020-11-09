@@ -10,6 +10,9 @@ from trifinger_simulation.tasks import move_cube
 from trifinger_simulation.tasks.move_cube import Pose
 from scipy.spatial.transform import Rotation
 from trifinger_simulation.tasks.move_cube import _ARENA_RADIUS, _max_height
+from code.align_rotation import pitch_rotation_times, cube_rotation_aligned
+from code.align_rotation import project_cube_xy_plane
+from code.utils import sample_uniform_from_circle
 import numpy as np
 
 
@@ -30,28 +33,6 @@ class RandomInitializer:
     def get_goal(self):
         """Get a random goal depending on the difficulty."""
         return move_cube.sample_goal(difficulty=self.difficulty)
-
-
-class InitCubeRotatedInitializer:
-    """Initializer that samples random initial states and goals."""
-
-    def __init__(self):
-        """Initialize.
-        Args:
-            difficulty (int):  Difficulty level for sampling goals.
-        """
-        self.difficulty = 4
-
-    def get_initial_state(self):
-        """Get a random initial object pose (always on the ground)."""
-        move_cube.sample_goal(difficulty=4)
-        move_cube.sample_goal(difficulty=4)
-        return move_cube.sample_goal(difficulty=4)
-
-    def get_goal(self):
-        """Get a random goal depending on the difficulty."""
-        return move_cube.sample_goal(difficulty=self.difficulty)
-
 
 
 class EvalEpisodesInitializer:
@@ -99,6 +80,7 @@ class EvalEpisodesInitializer:
                 goal = Pose.from_json(f.read())
             self.episodes.append(EvalEpisode(init, goal))
 
+
 class Task4SmallRotation:
     def __init__(self, difficulty, orientation_error_threshold=np.pi/2 * 0.5):
         if difficulty != 4:
@@ -143,11 +125,24 @@ class Task4SmallRotation:
         return (xy_dist / range_xy_dist + z_dist / range_z_dist) / 2
 
 
-random_init = RandomInitializer
-# Each line internally loads large number of json files, but it runs pretty fast (<0.2s in total) on a laptop. So it'd be all right.
-task1_eval_init = EvalEpisodesInitializer(difficulty=1)
-task2_eval_init = EvalEpisodesInitializer(difficulty=2)
-task3_eval_init = EvalEpisodesInitializer(difficulty=3)
-task4_eval_init = EvalEpisodesInitializer(difficulty=4)
+class TrainingInitializer:
+    """Init in a tighter radius."""
 
-init_cube_rotated_init = InitCubeRotatedInitializer()
+    def __init__(self, difficulty):
+        self.difficulty = difficulty
+
+    def get_initial_state(self):
+        """Get a random initial object pose (always on the ground)."""
+        init = move_cube.sample_goal(difficulty=-1)
+        init.position[:2] = sample_uniform_from_circle(0.07)
+        return init
+
+    def get_goal(self):
+        """Get a random goal depending on the difficulty."""
+        return move_cube.sample_goal(difficulty=self.difficulty)
+
+
+random_init = RandomInitializer
+eval_init = EvalEpisodesInitializer
+small_rot_init = Task4SmallRotation
+training_init = TrainingInitializer

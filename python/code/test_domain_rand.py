@@ -26,13 +26,14 @@ def main(args):
         'residual': True,
         'reward_fn': 'competition_reward',
         'termination_fn': 'no_termination', #'position_close_to_goal' if args.difficulty < 4 else 'pos_and_rot_close_to_goal',
-        'initializer': 'random_init',
+        'initializer': 'training_init',
         'sim': True,
         'monitor': False,
         'rank': args.seed,
         'randomize': True,
+        'skip_motions': True,
     }
-    env = make_training_env(visualization=True, **eval_config).env
+    env = make_training_env(visualization=True, **eval_config)
 
     acc_rewards = []
     wallclock_times = []
@@ -43,8 +44,8 @@ def main(args):
         start = time.time()
         is_done = False
         observation = env.reset()
-        if env.planning_fc_policy.fc_policy.viz:
-            env.planning_fc_policy.fc_policy.viz.reset(observation)
+        if env.viz:
+            env.viz.reset(observation)
         accumulated_reward = 0
         aligning_steps.append(env.unwrapped.step_count)
 
@@ -54,7 +55,7 @@ def main(args):
         p.resetDebugVisualizerCamera( cameraDistance=0.6, cameraYaw=0, cameraPitch=-40, cameraTargetPosition=[0,0,0])
 
         step = 0
-        while not is_done and step < 2000:
+        while not is_done and step < 500:
             step += 1
             action = env.action_space.sample()
             if isinstance(action, dict):

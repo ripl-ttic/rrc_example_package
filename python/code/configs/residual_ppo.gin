@@ -44,12 +44,14 @@ make_pybullet_env.frameskip = 3
 make_pybullet_env.visualization = False
 make_pybullet_env.reward_fn = "training_reward"
 make_pybullet_env.termination_fn = "position_close_to_goal"
-make_pybullet_env.initializer = "random_init"
+make_pybullet_env.initializer = "training_init"
 make_pybullet_env.episode_length = 3750
 make_pybullet_env.residual = True
 make_pybullet_env.monitor = False
 make_pybullet_env.seed = 0
 make_pybullet_env.norm_observations = True
+make_pybullet_env.randomize = True
+make_pybullet_env.skip_motions = True
 
 VecObsNormWrapper.steps = 10000
 VecObsNormWrapper.mean = None
