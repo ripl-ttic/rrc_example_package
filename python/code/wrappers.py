@@ -307,7 +307,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         Wrapper to perform residual learning on top of motion planning and force control.
     '''
     def __init__(self, env, apply_torques, action_repeat=2, align_goal_ori=True,
-                 init_cube_manip='auto', use_rrt=False, use_incremental_rrt=False,
+                 init_cube_manip='grasp', use_rrt=False, use_incremental_rrt=False,
                  evaluation=True, is_level_4=False, skip_motions=False):
         super().__init__(env)
         from code.fc_force_control import ForceControlPolicy, Viz
@@ -376,10 +376,9 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         print('goal_pos', obs['goal_object_position'])
         print('goal_ori', obs['goal_object_orientation'])
         self.env.save_custom_logs()
-        init_cube_manip = self._choose_init_cube_manip(obs)
 
         # flip the cube
-        if init_cube_manip == 'flip_and_grasp':
+        if self.init_cube_manip == 'flip_and_grasp':
             try:
                 skip = bool(self.env.simulation and self.skip_motions)
                 obs = self.cube_manipulator.align_rotation(obs, skip=skip)
@@ -416,7 +415,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
                 pass
 
         # approach a grasp pose
-        if init_cube_manip in ['grasp', 'flip_and_grasp']:
+        if self.init_cube_manip in ['grasp', 'flip_and_grasp']:
             try:
                 skip = bool(self.env.simulation and self.skip_motions)
                 obs = self._grasp_approach(obs, skip=skip)
@@ -433,10 +432,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
                     # TODO: ?
                     # self._run_backup_fc_sequence(obs)
                     pass
-
-        if init_cube_manip == 'skip':
-            assert not self.__evaluation, 'init_cube_manip == "skip" is not allowed at evaluation!!'
-            obs = self.planning_fc_policy._initialize_joint_poses(obs)
 
         obs = self._tighten_grasp(obs)  # NOTE: this steps the environment!!
         self._timestep = 0
@@ -479,18 +474,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         self._maybe_update_cube_ori_viz(obs)
         self._base_action = self.planning_fc_policy.get_action(obs, self._timestep)
         return self._add_action_to_obs(obs, self._base_action), reward, done, info
-
-    def _choose_init_cube_manip(self, obs):
-        if self.init_cube_manip == 'auto':
-            # whatever
-            # TEMP:
-            # init_cube_manip = 'flip_and_grasp'
-            # init_cube_manip = 'grasp'
-            init_cube_manip = 'skip'
-            return init_cube_manip
-
-        else:
-            return self.init_cube_manip
 
     def _instantiate_planning_fc_policy(self, obs):
         from code.fc_planned_motion import PlanningAndForceControlPolicy
