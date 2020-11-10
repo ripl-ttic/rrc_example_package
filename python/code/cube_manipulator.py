@@ -472,14 +472,17 @@ class CubeManipulator:
 
             from code.utils import complete_keypoints
             keypoints = complete_keypoints(start=m_tip_pos, goal=tip_pos)
-            for keypoint in keypoints:
-                if self.vis_markers is not None:
+            if self.vis_markers is not None:
+                for keypoint in keypoints:
                     self.vis_markers.add(keypoint, color=TRANSLU_YELLOW)
-                jconfs = ik_utils.sample_ik(keypoint, sort_tips=False)
-                if len(jconfs) == 0:
-                    print('warning: IK failed on grasp motion')
+
+            grasp_action_seq = []
+            jconf_sequence = ik_utils.sample_iks(keypoints, sort_tips=False)
+            for jconf in jconf_sequence:
+                if jconf is None:
+                    print('warning: IK solution not found in grasp motion')
                     continue
-                grasp_action_seq.append(jconfs[0])
+                grasp_action_seq.append(jconf)
             # unit_length = 0.008
             # inward_vector = tip_pos - m_tip_pos
             # max_length_to_surface = max(np.linalg.norm(inward_vector, axis=1))
