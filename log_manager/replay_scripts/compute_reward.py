@@ -32,5 +32,5 @@ if __name__ == '__main__':
     parser.add_argument("logdir", help="path to the log directory")
     args = parser.parse_args()
     reward = compute_reward(args.logdir)
-    with open(os.path.join(args.logdir, 'reward.txt'), 'w') as f:
+    with open(os.path.join(args.logdir, 'reward.json'), 'w') as f:
         json.dump({'reward': reward}, f)
