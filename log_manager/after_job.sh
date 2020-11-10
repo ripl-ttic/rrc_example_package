@@ -20,5 +20,6 @@ if [ ! ${status} == 'C' ]; then
 fi
 
 bash ${dir}/download_logs.sh ${jobid} ${logdir}
+singularity run --nv ${image} python3 ${dir}/replay_scripts/compute_reward.py ${logdir}/${jobid}
 bash ${dir}/make_plots.sh ${image} ${logdir}/${jobid}
 bash ${dir}/make_video.sh ${image} ${logdir}/${jobid}

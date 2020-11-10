@@ -506,6 +506,7 @@ class keep_state:
 
     def __exit__(self, type, value, traceback):
         p.restoreState(stateId=self.state_id)
+        p.removeState(stateUniqueId=self.state_id)
 
 
 class IKUtils:
