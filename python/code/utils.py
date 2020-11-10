@@ -519,31 +519,68 @@ class IKUtils:
         self.link_ids = env.platform.simfinger.pybullet_link_indices
         self.cube_id = env.platform.cube.block
         self.env = env
+        self.sample_fn = self._get_sample_fn()
 
     def sample_no_collision_ik(self, target_tip_positions, sort_tips=False, slacky_collision=False):
-        from pybullet_planning.interfaces.kinematics.ik_utils import sample_multiple_ik_with_collision
+        from pybullet_planning.interfaces.kinematics.ik_utils import sample_ik_solution
+        num_samples = 3
+        collision_fn = self._get_collision_fn(slacky_collision)
 
         with keep_state(self.env):
             if sort_tips:
-                target_tip_positions, _, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
-            collision_fn = self._get_collision_fn(slacky_collision)
-            sample_fn = self._get_sample_fn()
-            solutions = sample_multiple_ik_with_collision(self.ik, collision_fn, sample_fn,
-                                                          target_tip_positions, num_samples=3)
-            return solutions
+                target_tip_positions, _, _ = assign_positions_to_fingers(
+                    target_tip_positions, self.fk
+                )
+            ik_solution = sample_ik_solution(self.ik, self.sample_fn, target_tip_positions)
+            if ik_solution is None:
+                return []
+            ik_solutions = [ik_solution]
+            ik_solutions += [sample_ik_solution(self.ik, self.sample_fn, target_tip_positions) for _ in range(num_samples)]
+            ik_solutions = [ik_sol for ik_sol in ik_solutions if not collision_fn(ik_sol)]
+        return ik_solutions
 
     def sample_ik(self, target_tip_positions, sort_tips=False):
-        from pybullet_planning.interfaces.kinematics.ik_utils import sample_multiple_ik_with_collision
-        def no_collision_fn(*args, **kwargs):
-            return False
+        '''
+        NOTE: calling this function again and again is very slow.
+        This is due to keep_state context manager.
+        Use sample_iks for such use cases
+        '''
+        from pybullet_planning.interfaces.kinematics.ik_utils import sample_ik_solution
+        if sort_tips:
+            _, sorted_inds, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
+        else:
+            sorted_inds = None
 
         with keep_state(self.env):
+            ik_solution = self._sample_ik(target_tip_positions, sorted_inds=sorted_inds)
+        if ik_solution is None:
+            return []
+        return [ik_solution]
+
+    def _sample_ik(self, target_tip_positions, sorted_inds=None):
+        from pybullet_planning.interfaces.kinematics.ik_utils import sample_ik_solution
+        if sorted_inds is not None:
+            target_tip_positions = target_tip_positions[sorted_inds, :]
+        ik_solution = sample_ik_solution(self.ik, self.sample_fn, target_tip_positions)
+        if ik_solution is None:
+            return None
+        return ik_solution
+
+    def sample_iks(self, target_tip_pos_seq, sort_tips=False):
+        '''
+        NOTE: return value "solutions" contains None if the corresponding IK solution is not found
+        '''
+        from pybullet_planning.interfaces.kinematics.ik_utils import sample_ik_solution
+        solutions = []
+        with keep_state(self.env):
             if sort_tips:
-                target_tip_positions, _, _ = assign_positions_to_fingers(target_tip_positions, self.fk)
-            sample_fn = self._get_sample_fn()
-            solutions = sample_multiple_ik_with_collision(self.ik, no_collision_fn, sample_fn,
-                                                          target_tip_positions, num_samples=3)
-            return solutions
+                _, sorted_inds, _ = assign_positions_to_fingers(target_tip_pos_seq[0], self.fk)
+            else:
+                sorted_inds = None
+            for target_tip_pos in target_tip_pos_seq:
+                ik_solution = self._sample_ik(target_tip_pos, sorted_inds=sorted_inds)
+                solutions.append(ik_solution)
+        return solutions
 
     def _get_collision_fn(self, slacky_collision, diagnosis=False):
         from pybullet_planning.interfaces.robots.collision import get_collision_fn
