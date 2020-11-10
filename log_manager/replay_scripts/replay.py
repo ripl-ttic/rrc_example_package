@@ -342,16 +342,16 @@ def main(logdir, video_path):
         orientation=goal['orientation'],
         physicsClientId=platform.simfinger._pybullet_client_id,
     )
-    if 'grasp_target_cube_pose' in custom_log:
-        markers.append(
-            visual_objects.CubeMarker(
-                width=0.065,
-                position=custom_log['grasp_target_cube_pose']['position'],
-                orientation=custom_log['grasp_target_cube_pose']['orientation'],
-                color=(0, 0, 1, 0.5),
-                physicsClientId=platform.simfinger._pybullet_client_id,
-            )
-        )
+    # if 'grasp_target_cube_pose' in custom_log:
+    #     markers.append(
+    #         visual_objects.CubeMarker(
+    #             width=0.065,
+    #             position=custom_log['grasp_target_cube_pose']['position'],
+    #             orientation=custom_log['grasp_target_cube_pose']['orientation'],
+    #             color=(0, 0, 1, 0.5),
+    #             physicsClientId=platform.simfinger._pybullet_client_id,
+    #         )
+    #     )
     if 'pregrasp_tip_positions' in custom_log:
         for tip_pos in custom_log['pregrasp_tip_positions']:
             print(tip_pos)
