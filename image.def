@@ -20,4 +20,4 @@ From: ./realrobotchallenge.sif
     python3 -m pip install imageio==2.9.0
     python3 -m pip install cvxopt==1.2.5
     python3 -m pip install git+https://github.com/ripl-ttic/pybullet_planning.git@rrc-phase-2
-    python3 -m pip install git+https://github.com/cbschaff/dl.git@b354147369b515d97746aec89ef23611d97774c0
+    python3 -m pip install git+https://github.com/cbschaff/dl.git@0e24f5a90d86bb0a24e05f5213ede7fbe3cf0ab3
