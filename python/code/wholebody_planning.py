@@ -54,6 +54,23 @@ class WholeBodyPlanner:
             return p.getQuaternionFromEuler(euler)
         return [apply_transform(cube_pose[:3], get_quat(cube_pose[3:]), cube_tip_positions) for cube_pose in cube_path]
 
+    def get_tighter_path(self, path, coef=0.9):
+        from code.utils import IKUtils, keep_state
+        from pybullet_planning.interfaces.kinematics.ik_utils import sample_ik_solution
+        ik_utils = IKUtils(self.env)
+        cube_tip_pos = path.cube_tip_pos * coef
+        tip_path = self._get_tip_path(cube_tip_pos, path.cube)
+
+        joint_conf = []
+        print('wholebody planning path length:', len(tip_path))
+        jconf_sequence = ik_utils.sample_iks(tip_path, sort_tips=False)
+        for jconf in jconf_sequence:
+            if jconf is None:
+                print('warning: IK solution not found in WholebodyPlanning.get_tighter_path')
+                continue
+            joint_conf.append(jconf)
+        return Path(path.cube, joint_conf, tip_path, cube_tip_pos)
+
     def plan(self, obs, goal_pos=None, goal_quat=None, retry_grasp=10, mu=1.0,
              cube_halfwidth=0.0425, use_rrt=False, use_incremental_rrt=False,
              min_goal_threshold=0.01, max_goal_threshold=0.8, use_ori=False):

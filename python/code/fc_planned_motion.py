@@ -23,7 +23,7 @@ import copy
 
 class PlanningAndForceControlPolicy:
     def __init__(self, env, obs, fc_policy, action_repeat=2 * 2, align_goal_ori=True,
-                 use_rrt=False, use_incremental_rrt=False, constants=None):
+                 use_rrt=False, use_incremental_rrt=False, constants=None, tighter_grasp=True):
         if constants is None:
             constants = self._get_default_constants()
         self.env = env
@@ -50,6 +50,9 @@ class PlanningAndForceControlPolicy:
                                  use_ori=align_goal_ori)
         if path.cube is None:
             raise RuntimeError('No feasible path is found.')
+
+        if tighter_grasp:
+            path = self.planner.get_tighter_path(path)
 
         self.path = path
         self.joint_sequence = repeat(path.joint_conf, num_repeat=action_repeat)
