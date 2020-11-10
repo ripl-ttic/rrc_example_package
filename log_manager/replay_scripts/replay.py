@@ -25,6 +25,70 @@ def load_data(path):
     return data
 
 
+# Mostly copied from move_cube.py
+def evaluate_state(goal_pose, actual_pose, difficulty):
+    """Compute cost of a given cube pose.  Less is better.
+
+    Args:
+        goal:  Goal pose dict of the cube.
+        actual_pose:  Actual pose of the cube.
+        difficulty:  The difficulty level of the goal (see
+            :func:`sample_goal`).  The metric for evaluating a state differs
+            depending on the level.
+
+    Returns:
+        Cost of the actual pose w.r.t. to the goal pose.  Lower value means
+        that the actual pose is closer to the goal.  Zero if actual == goal.
+    """
+    _CUBE_WIDTH = 0.065
+    _ARENA_RADIUS = 0.195
+
+    _cube_3d_radius = _CUBE_WIDTH * np.sqrt(3) / 2
+    _max_cube_com_distance_to_center = _ARENA_RADIUS - _cube_3d_radius
+
+    _min_height = _CUBE_WIDTH / 2
+    _max_height = 0.1
+
+    def weighted_position_error():
+        range_xy_dist = _ARENA_RADIUS * 2
+        range_z_dist = _max_height
+
+        xy_dist = np.linalg.norm(
+            goal_pose['position'][:2] - actual_pose.position[:2]
+        )
+        z_dist = abs(goal_pose['position'][2] - actual_pose.position[2])
+
+        # weight xy- and z-parts by their expected range
+        return (xy_dist / range_xy_dist + z_dist / range_z_dist) / 2
+
+    if difficulty in (1, 2, 3):
+        # consider only 3d position
+        return weighted_position_error()
+    elif difficulty == 4:
+        # consider whole pose
+        scaled_position_error = weighted_position_error()
+
+        # https://stackoverflow.com/a/21905553
+        goal_rot = R.from_quat(goal_pose['orientation'])
+        actual_rot = R.from_quat(actual_pose.orientation)
+        error_rot = goal_rot.inv() * actual_rot
+        orientation_error = error_rot.magnitude()
+
+        # scale both position and orientation error to be within [0, 1] for
+        # their expected ranges
+        scaled_orientation_error = orientation_error / np.pi
+
+        scaled_error = (scaled_position_error + scaled_orientation_error) / 2
+        return scaled_error
+
+        # Use DISP distance (max. displacement of the corners)
+        # goal_corners = get_cube_corner_positions(goal_pose)
+        # actual_corners = get_cube_corner_positions(actual_pose)
+        # disp = max(np.linalg.norm(goal_corners - actual_corners, axis=1))
+    else:
+        raise ValueError("Invalid difficulty %d" % difficulty)
+
+
 class SphereMarker:
     def __init__(self, radius, position, color=(0, 1, 0, 0.5)):
         """
@@ -210,24 +274,29 @@ class VideoRecorder:
         out.release()
 
 
-def get_synced_log_data(logdir):
+def get_synced_log_data(logdir, goal, difficulty):
     log = robot_fingers.TriFingerPlatformLog(os.path.join(logdir, "robot_data.dat"),
                                              os.path.join(logdir, "camera_data.dat"))
     log_camera = tricamera.LogReader(os.path.join(logdir, "camera_data.dat"))
     stamps = log_camera.timestamps
 
     obs = {'robot': [], 'cube': [], 'images': [], 't': [], 'desired_action': [],
-           'stamp': []}
+           'stamp': [], 'acc_reward': []}
     ind = 0
-    for t in range(log.get_first_timeindex(), log.get_last_timeindex() + 1):
+    acc_reward = 0.0
+    for t in range(log.get_first_timeindex(), log.get_first_timeindex() + 6000):
+        camera_observation = log.get_camera_observation(t)
+        acc_reward -= evaluate_state(
+            goal, camera_observation.filtered_object_pose, difficulty
+        )
         if 1000 * log.get_timestamp_ms(t) >= stamps[ind]:
             robot_observation = log.get_robot_observation(t)
-            camera_observation = log.get_camera_observation(t)
             obs['robot'].append(robot_observation)
             obs['cube'].append(camera_observation.filtered_object_pose)
             obs['images'].append([convert_image(camera.image)
                                   for camera in camera_observation.cameras])
             obs['desired_action'].append(log.get_desired_action(t))
+            obs['acc_reward'].append(acc_reward)
             obs['t'].append(t)
             obs['stamp'].append(log.get_timestamp_ms(t))
             ind += 1
@@ -238,13 +307,20 @@ def get_goal(logdir):
     filename = os.path.join(logdir, 'goal.json')
     with open(filename, 'r') as f:
         goal = json.load(f)
-    return goal['goal']
+    return goal['goal'], goal['difficulty']
+
+
+def add_text(frame, text, position, **kwargs):
+    frame = cv2.putText(frame, text, position,
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(0, 0, 0),
+                        thickness=2, lineType=cv2.LINE_AA, **kwargs)
+    return frame
 
 
 def main(logdir, video_path):
     custom_log = load_data(os.path.join(logdir, 'user/custom_data'))
-    goal = get_goal(logdir)
-    data = get_synced_log_data(logdir)
+    goal, difficulty = get_goal(logdir)
+    data = get_synced_log_data(logdir, goal, difficulty)
     fps = len(data['t']) / (data['stamp'][-1] - data['stamp'][0])
     video_recorder = VideoRecorder(fps)
     cube_drawer = CubeDrawer(logdir)
@@ -266,16 +342,16 @@ def main(logdir, video_path):
         orientation=goal['orientation'],
         physicsClientId=platform.simfinger._pybullet_client_id,
     )
-    # if 'grasp_target_cube_pose' in custom_log:
-    #     markers.append(
-    #         visual_objects.CubeMarker(
-    #             width=0.065,
-    #             position=custom_log['grasp_target_cube_pose']['position'],
-    #             orientation=custom_log['grasp_target_cube_pose']['orientation'],
-    #             color=(0, 0, 1, 0.5),
-    #             physicsClientId=platform.simfinger._pybullet_client_id,
-    #         )
-    #     )
+    if 'grasp_target_cube_pose' in custom_log:
+        markers.append(
+            visual_objects.CubeMarker(
+                width=0.065,
+                position=custom_log['grasp_target_cube_pose']['position'],
+                orientation=custom_log['grasp_target_cube_pose']['orientation'],
+                color=(0, 0, 1, 0.5),
+                physicsClientId=platform.simfinger._pybullet_client_id,
+            )
+        )
     if 'pregrasp_tip_positions' in custom_log:
         for tip_pos in custom_log['pregrasp_tip_positions']:
             print(tip_pos)
@@ -336,6 +412,9 @@ def main(logdir, video_path):
 
         frame = np.concatenate((frame_desired, frame_observed,
                                 frame_real, frame_real_cube), axis=0)
+        # add text
+        frame = add_text(frame, text='step: {:06d}'.format(t), position=(10, 40))
+        frame = add_text(frame, text='acc reward: {:.3f}'.format(data['acc_reward'][i]), position=(10, 70))
         video_recorder.add_frame(frame)
     video_recorder.save_video(video_path)
 
