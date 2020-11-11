@@ -728,3 +728,18 @@ def sample_uniform_from_circle(radius):
 
         return x, y
     return np.asarray(random_xy(radius))
+
+
+def filter_none_elements(joint_conf_sequence):
+    '''
+    This function removes None in the sequence, and also returns indices that correspond to non-None elements
+    '''
+    valid_indices = []
+    valid_joint_confs = []
+    for idx, jconf in enumerate(joint_conf_sequence):
+        if jconf is None:
+            continue
+        valid_joint_confs.append(jconf)
+        valid_indices.append(idx)
+
+    return valid_indices, valid_joint_confs
