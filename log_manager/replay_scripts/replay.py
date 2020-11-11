@@ -284,7 +284,7 @@ def get_synced_log_data(logdir, goal, difficulty):
            'stamp': [], 'acc_reward': []}
     ind = 0
     acc_reward = 0.0
-    for t in range(log.get_first_timeindex(), log.get_first_timeindex() + 6000):
+    for t in range(log.get_first_timeindex(), log.get_last_timeindex() + 1):
         camera_observation = log.get_camera_observation(t)
         acc_reward -= evaluate_state(
             goal, camera_observation.filtered_object_pose, difficulty
