@@ -3,6 +3,7 @@ import argparse
 import os
 import subprocess
 import numpy as np
+import pandas as pd
 
 def get_credential():
     with open('user.txt', 'r') as f:
@@ -258,7 +259,6 @@ class EvalEpisodes:
                 self.commitid2episodes[git_revision] += [episode]
 
     def print_stats_table(self, difficulty):
-        import pandas as pd
         data = {"tag": [], "avg_reward": [], "stddev": [], "num_episodes": [], "commitid": [] }
         counter = 0
         for commitid, episodes in self.commitid2episodes.items():
@@ -269,13 +269,7 @@ class EvalEpisodes:
             data['avg_reward'].append(avg_reward)
             data['stddev'].append(stddev)
             data['num_episodes'].append(len(episodes))
-            if commitid[:7] in commitid2tag:
-                tag = commitid2tag[commitid[:7]]
-                if tag in correction:
-                    tag = correction[tag]
-                data['tag'].append(tag)
-            else:
-                data['tag'].append(None)
+            data['tag'].append(self.get_tag(commitid))
             counter += len(episodes)
         df = pd.DataFrame(data)
         df = df.sort_values(by='avg_reward', ascending=False)
@@ -300,6 +294,33 @@ class EvalEpisodes:
                 ret.append(episode)
         return ret
 
+    def get_tag(self, commitid):
+        if commitid[:7] in commitid2tag:
+            tag = commitid2tag[commitid[:7]]
+            if tag in correction:
+                tag = correction[tag]
+            return tag
+        return None
+
+    def dump_commitid2jobids(self, filename):
+        def add_jobids(data, commitid, difficulty, jobids):
+            for jobid in jobids:
+                data["commitid"].append(commitid)
+                data["tag"].append(self.get_tag(commitid))
+                data["difficulty"].append(difficulty)
+                data["jobid"].append(jobid)
+            return data
+
+        data = {"tag": [], "difficulty": [], "jobid": [], "commitid": []}
+        for difficulty in [1, 2, 3, 4]:
+            for commitid, episodes in self.commitid2episodes.items():
+                episodes = self.filter_by_difficulty(episodes, difficulty)
+                jobids = [ep["jobid"] for ep in episodes]
+                data = add_jobids(data, commitid, difficulty, jobids)
+        df = pd.DataFrame(data)
+        df = df.sort_values(by=["tag", "difficulty"])
+        df.to_csv(filename)
+
 
 def calculate_reward_stats(logdir):
     import json
@@ -320,6 +341,7 @@ def calculate_reward_stats(logdir):
     eval_episodes = EvalEpisodes(episodes)
     for difficulty in [1, 2, 3, 4]:
         eval_episodes.print_stats_table(difficulty)
+    eval_episodes.dump_commitid2jobids(os.path.join(logdir, 'tagname2jobid.csv'))
 
 
 def main(logdir):
