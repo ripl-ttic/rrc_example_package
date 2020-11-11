@@ -38,14 +38,14 @@ from code.residual_ppo import ResidualPPO2
 
 
 def use_ppo(difficulty):
-    return difficulty in [1, 2, 3, 4] and False
+    return difficulty in [1, 2, 3, 4]
 
 
 def _init_env_and_policy(goal_pose_json, difficulty, training=True):
     if use_ppo(difficulty):
         # HACK to get the path to the root directory
         root_dir = os.path.dirname(os.path.realpath(__file__))
-        if False:
+        if True:
             expdir = os.path.join(root_dir, f'../models/mpfc_level_{difficulty}')
         else:
             expdir = os.path.join(root_dir, f'../models/fc_level_{difficulty}')
