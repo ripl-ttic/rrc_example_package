@@ -423,6 +423,7 @@ class CubeManipulator:
         '''return grasp action sequence'''
 
         from code.wholebody_planning import disable_tip_collisions
+        from code.utils import filter_none_elements
         import pybullet as p
         import time
         if (cube_tip_pos is None) != (cube_pose is None):
@@ -476,13 +477,11 @@ class CubeManipulator:
                 for keypoint in keypoints:
                     self.vis_markers.add(keypoint, color=TRANSLU_YELLOW)
 
-            grasp_action_seq = []
             jconf_sequence = ik_utils.sample_iks(keypoints, sort_tips=False)
-            for jconf in jconf_sequence:
-                if jconf is None:
-                    print('warning: IK solution not found in grasp motion')
-                    continue
-                grasp_action_seq.append(jconf)
+            _, grasp_action_seq = filter_none_elements(jconf_sequence)
+            num_no_iksols = len(jconf_sequence) - len(grasp_action_seq)
+            if num_no_iksols > 0:
+                print(f'warning: {num_no_iksols} IK solutions are not found in grasp motion')
             # unit_length = 0.008
             # inward_vector = tip_pos - m_tip_pos
             # max_length_to_surface = max(np.linalg.norm(inward_vector, axis=1))
