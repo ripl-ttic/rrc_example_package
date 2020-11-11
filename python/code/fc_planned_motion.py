@@ -100,6 +100,28 @@ class PlanningAndForceControlPolicy:
         self._actions_in_progress = True
 
         step = self._step if step is None else step
+        if self.at_end_of_sequence(step): # and self.env.info['difficulty'] < 4:
+            print("Appending to path....")
+            tip_pos = self.path.tip_path[-1]
+            dir = obs['goal_object_position'] - obs['object_position']
+            nsteps = 50
+            for i in range(nsteps):
+                goal_tip_pos = tip_pos + i / nsteps * dir[None]
+                q = obs['robot_position']
+                for i, tip in enumerate(goal_tip_pos):
+                    q = self.env.pinocchio_utils.inverse_kinematics(i, tip, q)
+                    if q is None:
+                        q = self.joint_sequence[-1]
+                        break
+                if q is None:
+                    break
+                target_cube_pose = np.concatenate([
+                    obs['object_position'] + i / nsteps * dir,
+                    self.cube_sequence[-1][3:]
+                ])
+                self.cube_sequence.append(target_cube_pose)
+                self.joint_sequence.append(q)
+                self.path.tip_path.append(goal_tip_pos)
         step = min(step, len(self.cube_sequence) - 1)
         target_cube_pose = self.cube_sequence[step]
         target_joint_conf = self.joint_sequence[step]
