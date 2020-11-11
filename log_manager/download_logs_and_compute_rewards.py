@@ -145,9 +145,12 @@ def generate_reward_json(logdir, jobid):
 def filter_dir(dirname):
     return int(dirname) <= 9507
 
+def list_directories(logdir):
+    return [e for e in os.listdir(logdir) if os.path.isdir(os.path.join(logdir, e))]
+
 
 def get_filtered_dirs(logdir):
-    dirs = os.listdir(logdir)
+    dirs = list_directories(logdir)
     dirs = [e for e in dirs if not filter_dir(e)]
     dirs = sorted(list(dirs), key=lambda x: -int(x))
     return dirs
@@ -182,8 +185,8 @@ def get_dirs_that_needs_dat_files(logdir):
     current_logs = get_filtered_dirs(logdir)
     for directory in current_logs:
         if not sanity_check(os.path.join(logdir, directory)): continue
-        dirs = os.listdir(os.path.join(logdir, directory))
-        if 'reward.json' not in dirs and ('robot_data.dat' not in dirs or 'camera_data.dat' not in dirs):
+        files = os.listdir(os.path.join(logdir, directory))
+        if 'reward.json' not in files and ('robot_data.dat' not in files or 'camera_data.dat' not in files):
             ret.append(directory)
     return ret
 
@@ -199,8 +202,8 @@ def get_dirs_that_need_reward_json(logdir):
     current_logs = get_filtered_dirs(logdir)
     for directory in current_logs:
         if not sanity_check(os.path.join(logdir, directory)): continue
-        dirs = os.listdir(os.path.join(logdir, directory))
-        if 'reward.json' not in dirs and ('robot_data.dat' in dirs and 'camera_data.dat' in dirs):
+        files = os.listdir(os.path.join(logdir, directory))
+        if 'reward.json' not in files and ('robot_data.dat' in files and 'camera_data.dat' in files):
             ret.append(directory)
     return ret
 
