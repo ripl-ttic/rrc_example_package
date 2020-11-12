@@ -310,7 +310,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
     '''
     def __init__(self, env, apply_torques, action_repeat=2, align_goal_ori=True,
                  init_cube_manip='grasp', use_rrt=False, use_incremental_rrt=False,
-                 evaluation=True, is_level_4=False, skip_motions=False, tip_adjust_z=True):
+                 evaluation=True, is_level_4=False, skip_motions=False):
         super().__init__(env)
         from code.fc_force_control import ForceControlPolicy, Viz
         from code.cube_manipulator import CubeManipulator
@@ -338,7 +338,6 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         self.init_cube_manip = init_cube_manip
         self.use_rrt = use_rrt
         self.use_incremental_rrt = use_incremental_rrt
-        self.tip_adjust_z = tip_adjust_z
         self.is_level_4 = is_level_4
         self._prev_obs = None
         self._timestep = None
@@ -483,8 +482,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         planning_fc_policy = PlanningAndForceControlPolicy(
             self.env, obs, self.fc_policy,
             align_goal_ori=self.align_goal_ori, use_rrt=self.use_rrt,
-            use_incremental_rrt=self.use_incremental_rrt,
-            tip_adjust_z=self.tip_adjust_z
+            use_incremental_rrt=self.use_incremental_rrt
         )
         return planning_fc_policy
 

@@ -38,7 +38,6 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
                       sim=False, visualization=False, reward_fn=None,
                       termination_fn=None, initializer=None, episode_length=100000,
                       residual=False, rank=0, monitor=False, randomize=False, skip_motions=False):
-    is_level_1 = goal_difficulty == 1
     is_level_4 = goal_difficulty == 4
     reward_fn = get_reward_fn(reward_fn)
     initializer = get_initializer(initializer)(goal_difficulty)
@@ -95,8 +94,7 @@ def make_training_env(cube_goal_pose, goal_difficulty, action_space, frameskip=1
                 use_rrt=is_level_4,
                 init_cube_manip='flip_and_grasp' if is_level_4 else 'grasp',
                 evaluation=False,
-                skip_motions=skip_motions,
-                tip_adjust_z=not is_level_1
+                skip_motions=skip_motions
             )
         else:
             raise ValueError(f"Can't do residual learning with {action_space}")
