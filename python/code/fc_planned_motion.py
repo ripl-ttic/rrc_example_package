@@ -23,7 +23,8 @@ import copy
 
 class PlanningAndForceControlPolicy:
     def __init__(self, env, obs, fc_policy, action_repeat=2 * 2, align_goal_ori=True,
-                 use_rrt=False, use_incremental_rrt=False, constants=None, tighter_grasp=True):
+                 use_rrt=False, use_incremental_rrt=False, constants=None, tighter_grasp=True,
+                 adjust_tip=True):
         if constants is None:
             constants = self._get_default_constants()
         self.env = env
@@ -57,6 +58,7 @@ class PlanningAndForceControlPolicy:
         self.path = path
         self.joint_sequence = repeat(path.joint_conf, num_repeat=action_repeat)
         self.cube_sequence = repeat(path.cube, num_repeat=action_repeat)
+        self.adjust_tip = adjust_tip
         self._step = 0
         self._actions_in_progress = False
 
@@ -100,7 +102,7 @@ class PlanningAndForceControlPolicy:
         self._actions_in_progress = True
 
         step = self._step if step is None else step
-        if self.at_end_of_sequence(step): # and self.env.info['difficulty'] < 4:
+        if self.adjust_tip and self.at_end_of_sequence(step): # and self.env.info['difficulty'] < 4:
             print("Appending to path....")
             tip_pos = self.path.tip_path[-1]
             dir = obs['goal_object_position'] - obs['object_position']
