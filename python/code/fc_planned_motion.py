@@ -106,7 +106,7 @@ class PlanningAndForceControlPolicy:
             tip_pos = self.path.tip_path[-1]
             dir = obs['goal_object_position'] - obs['object_position']
             if not self.tip_adjust_z:
-                dir[:, 3] = 0
+                dir[2] = 0
             nsteps = 50
             for i in range(nsteps):
                 goal_tip_pos = tip_pos + i / nsteps * dir[None]
