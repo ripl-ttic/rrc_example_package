@@ -37,15 +37,22 @@ import torch
 from code.residual_ppo import ResidualPPO2
 
 
+difficulty2config = {
+    1: {'ppo': False, 'action_space': 'torque_and_position', 'adjust_tip': True},  # eval-mpfc+adjust_tip-lvl1
+    2: {'ppo': True, 'action_space': 'torque_and_position', 'adjust_tip': True},  # eval-mpfc+residual+adjust_tip-lvl2
+    3: {'ppo': True, 'action_space': 'torque_and_position', 'adjust_tip': True},  # eval-mpfc+residual+adjust_tip-lvl3
+    4: {'ppo': True, 'action_space': 'torque_and_position', 'adjust_tip': False}  # eval-mpfc+residual-lvl4
+}
 def use_ppo(difficulty):
-    return difficulty in [1, 2, 3, 4] and False
+    # return difficulty in [1, 2, 3, 4] and False
+    return difficulty2config[difficulty]['ppo']
 
 
 def _init_env_and_policy(goal_pose_json, difficulty, training=True):
     if use_ppo(difficulty):
         # HACK to get the path to the root directory
         root_dir = os.path.dirname(os.path.realpath(__file__))
-        if True:
+        if difficulty2config[difficulty]['action_space'] == 'torque_and_position':
             expdir = os.path.join(root_dir, f'../models/mpfc_level_{difficulty}')
         else:
             expdir = os.path.join(root_dir, f'../models/fc_level_{difficulty}')
@@ -59,6 +66,7 @@ def _init_env_and_policy(goal_pose_json, difficulty, training=True):
             'make_pybullet_env.monitor=False',
             f'make_pybullet_env.sim={training}',
             f'make_pybullet_env.skip_motions={training}',
+            f'make_pybullet_env.adjust_tip={difficulty2config[difficulty]["adjust_tip"]}',
         ]
         from code.utils import set_seed
         set_seed(0)
@@ -73,7 +81,7 @@ def _init_env_and_policy(goal_pose_json, difficulty, training=True):
 
     else:
         eval_config = {
-            'action_space': 'torque_and_position',
+            'action_space': difficulty2config[difficulty]['action_space'],
             'frameskip': 3,
             'residual': True,
             'reward_fn': 'competition_reward',
@@ -84,6 +92,7 @@ def _init_env_and_policy(goal_pose_json, difficulty, training=True):
             'randomize': False,
             'sim': training,
             'skip_motions': training,
+            'adjust_tip': difficulty2config[difficulty]['adjust_tip'],
             'rank': 0
         }
 
