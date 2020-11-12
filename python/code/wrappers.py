@@ -371,6 +371,11 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
     def reset(self):
         print('reset is called')
         obs = self.env.reset()
+        obs = self.run_initial_manipulations(obs)
+        return obs
+
+    def run_initial_manipulations(self, obs, retry=False):
+        print("doing initial manipulation")
         self.env.register_custom_log('init_cube_pos', obs['object_position'])
         self.env.register_custom_log('init_cube_ori', obs['object_orientation'])
         self.env.register_custom_log('goal_pos', obs['goal_object_position'])
@@ -381,6 +386,17 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         print('goal_ori', obs['goal_object_orientation'])
         self.env.save_custom_logs()
 
+        if retry:
+            try:
+                print("Something failed. Recentering cube and retrying...")
+                skip = bool(self.env.simulation and self.skip_motions)
+                obs = self.cube_manipulator.move_to_center(obs, force_control=False, skip=skip)
+                num_steps = 10 if self.simulation else 100
+                obs = self.cube_manipulator.wait_for(obs, num_steps=num_steps)
+            except Exception as e:
+                print(EXCEP_MSSG.format(message='cube recentering seems to fail...', error=str(e)))
+                self.run_initial_manipulations(obs, retry=True)
+
         # flip the cube
         if self.init_cube_manip == 'flip_and_grasp':
             try:
@@ -388,17 +404,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
                 obs = self.cube_manipulator.align_rotation(obs, skip=skip)
             except Exception as e:
                 print(EXCEP_MSSG.format(message='cube flipping seemed to fail...', error=str(e)))
-                # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
-                # NOTE: Also, this is not allowed for evaluation.
-                if not self.__evaluation:
-                    if 'Monitor' in str(self.env):
-                        self.env.stats_recorder.save_complete()
-                        self.env.stats_recorder.done = True
-                    return self.reset()
-                else:
-                    # TODO: run bare force control if planning fails.
-                    # self._run_backup_fc_sequence(obs)
-                    pass
+                self.run_initial_manipulations(obs, retry=True)
 
         # wholebody motion planning
         try:
@@ -406,17 +412,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
             self.planning_fc_policy = self._instantiate_planning_fc_policy(obs)
         except Exception as e:
             print(EXCEP_MSSG.format(message='wholebody_planning seeemed to fail...', error=str(e)))
-            # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
-            # NOTE: Also, this is not allowed for evaluation.
-            if not self.__evaluation:
-                if 'Monitor' in str(self.env):
-                    self.env.stats_recorder.save_complete()
-                    self.env.stats_recorder.done = True
-                return self.reset()
-            else:
-                # TODO: run bare force control if planning fails.
-                # self._run_backup_fc_sequence(obs)
-                pass
+            self.run_initial_manipulations(obs, retry=True)
 
         # approach a grasp pose
         if self.init_cube_manip in ['grasp', 'flip_and_grasp']:
@@ -425,17 +421,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
                 obs = self._grasp_approach(obs, skip=skip)
             except Exception as e:
                 print(EXCEP_MSSG.format(message='planning to grasp the cube seeemed to fail...', error=str(e)))
-                # NOTE: THIS MAY FAIL if the original env rejects calling reset() before "done" Hasn't checked it.
-                # NOTE: Also, this is not allowed for evaluation.
-                if not self.__evaluation:
-                    if 'Monitor' in str(self.env):
-                        self.env.stats_recorder.save_complete()
-                        self.env.stats_recorder.done = True
-                    return self.reset()
-                else:
-                    # TODO: ?
-                    # self._run_backup_fc_sequence(obs)
-                    pass
+                self.run_initial_manipulations(obs, retry=True)
 
         obs = self._tighten_grasp(obs)  # NOTE: this steps the environment!!
         self._timestep = 0
