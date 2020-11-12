@@ -389,7 +389,8 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         if retry:
             try:
                 print("Something failed. Recentering cube and retrying...")
-                obs = self.cube_manipulator.move_to_center(obs, force_control=False)
+                skip = bool(self.env.simulation and self.skip_motions)
+                obs = self.cube_manipulator.move_to_center(obs, force_control=False, skip=skip)
                 num_steps = 10 if self.simulation else 100
                 obs = self.cube_manipulator.wait_for(obs, num_steps=num_steps)
             except Exception as e:
