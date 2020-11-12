@@ -45,7 +45,7 @@ def _init_env_and_policy(goal_pose_json, difficulty, training=True):
     if use_ppo(difficulty):
         # HACK to get the path to the root directory
         root_dir = os.path.dirname(os.path.realpath(__file__))
-        if difficulty == 4:
+        if True:
             expdir = os.path.join(root_dir, f'../models/mpfc_level_{difficulty}')
         else:
             expdir = os.path.join(root_dir, f'../models/fc_level_{difficulty}')
@@ -116,7 +116,7 @@ def main():
     #     difficulty, initial_pose, goal_pose
     # )
 
-    training = True  # If True, this sets 'sim' and 'skip_motions' to True
+    training = False  # If True, this sets 'sim' and 'skip_motions' to True
     env, ppo = _init_env_and_policy(goal_pose_json, difficulty, training=training)
     if ppo is not None:
         # run residual policy
