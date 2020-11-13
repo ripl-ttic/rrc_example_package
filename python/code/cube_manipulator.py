@@ -167,7 +167,8 @@ class CubeManipulator:
                     print(f'tip-assignment: {inds} did not work. trying next best tip-assignments')
 
             print("pitching cube...")
-            num_repeat = 5 if self.env.simulation else 5 * 10
+            # num_repeat = 5 if self.env.simulation else 5 * 10
+            num_repeat = 5 if self.env.simulation else 30  #  5 * 10
             obs = self.pitching_cube(obs, cube_tip_positions, num_repeat=num_repeat, final_pitch=(i == pitch_times - 1))
 
             rotated_axis = pitch_axis
@@ -326,7 +327,7 @@ class CubeManipulator:
             self.env.platform.simfinger.reset_finger_positions_and_velocities(obs['robot_position'])
             return obs
 
-        num_repeat = 4 if self.env.simulation else 8 * 4
+        num_repeat = 4 if self.env.simulation else 20  # 8 * 4
         act_seq = repeat(act_seq, num_repeat)
         num_repeat = 40 if self.env.simulation else 400
         act_seq += repeat([act_seq[-1]], num_repeat=num_repeat)  # Pause at the final pre-grasp pose
