@@ -49,36 +49,6 @@ def solve_qp(P, q, G, h, A, b, **kwargs):
         return None
 
 
-# def solve_conic_program(G, wrench, mu):
-#     # the optimization variables are the forces on each tip
-#     f = cp.Variable(9)
-#     # dummy = cp.Variable(1)
-#
-#     # the optimization objective is constant since it's actually a constraint satisfication problem
-#     objective = cp.Minimize(cp.sum_squares(f))
-#
-#     # two constraints:
-#     # 1. forces meet the external force
-#     constraint1 = G @ f == wrench
-#     # 2. forces inside the friction cone
-#     constraint21 = cp.SOC(mu * f[2], f[0:2])
-#     constraint22 = cp.SOC(mu * f[5], f[3:5])
-#     constraint23 = cp.SOC(mu * f[8], f[6:8])
-#     constraints = [constraint1, constraint21, constraint22, constraint23]
-#     # constraints = [cp.norm(dummy) <= -1]
-#
-#     # the optimization problem
-#     prob = cp.Problem(objective, constraints)
-#
-#     # solve the problem
-#     prob.solve()
-#     print("The optimal value is", prob.value)
-#     print("A solution f is", f.value)
-#     if f.value is None:
-#         return None
-#     return np.array(f.value).reshape((3, 3))
-
-
 class Transform(object):
     def __init__(self, pos=None, ori=None, T=None):
         if pos is not None and ori is not None:
@@ -221,26 +191,8 @@ class CoulombFriction(FrictionModel):
         return contact_forces
 
 
-class Contact(object):
-    def __init__(self, c, T=None):
-        """
-        Creates a contact point in the reference frame defined by T
-        (world frame if T is None).
-
-        c is an element in the output of p.getContactPoints()
-        """
-        self.bodyA, self.bodyB, self.linkA, self.linkB = c[1:5]
-        self.contact_posA = T(np.array(c[5]))
-        self.contact_posB = T(np.array(c[6]))
-        self.contact_normal = T(np.array(c[7]))
-        q = get_rotation_between_vecs(np.array([0, 0, 1]), self.contact_normal)
-        self.TA = Transform(pos=self.contact_posA, ori=q)
-        self.TB = Transform(pos=self.contact_posB, ori=q)
-
-
 class Cube(object):
-    def __init__(self, halfwidth, friction_model):
-        self.w = halfwidth
+    def __init__(self, friction_model):
         self.friction = friction_model
 
     def _compute_grasp_matrix(self, contacts, friction=None):
@@ -269,8 +221,6 @@ class Cube(object):
         f = solve_qp(np.eye(n), np.zeros(n), -np.eye(n),
                      -force_min * np.ones(n), G, wrench)
         if f is None:
-            # G_old = self._compute_grasp_matrix(contacts)
-            # f = solve_conic_program(G_old, wrench, self.friction.mu)
             return None
         else:
             f = self.friction.get_forces_from_approx(f)

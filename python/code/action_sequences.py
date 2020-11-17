@@ -30,16 +30,16 @@ class ScriptedActions:
         tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
-    def add_raise_tips(self, obs, height=CUBE_WIDTH * 1.4):
+    def add_raise_tips(self, obs, height=CUBOID_SIZE[0] * 2):
         last_tip_positions = self.get_last_tippos(obs)
         above_target_tip_positions = np.copy(last_tip_positions)
-        above_target_tip_positions[:, 2] = CUBE_WIDTH * 1.4
+        above_target_tip_positions[:, 2] = CUBOID_SIZE[0] * 2
         tip_pos_sequence = utils.complete_keypoints(last_tip_positions, above_target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence
 
     def add_heuristic_pregrasp(self, obs, coef=None, pregrasp_tip_pos=None):
         assert (coef is None) ^ (pregrasp_tip_pos is None), 'only one of coef or pregrasp_tip_pos needs to be set'
-        if obs['robot_tip_positions'][:, 2].min() < CUBE_WIDTH / 2:
+        if obs['robot_tip_positions'][:, 2].min() < CUBOID_SIZE[0] / 2:
             print('Warning: adding heuristic pregrasp even though robot_tip postiion is low')
         if pregrasp_tip_pos is None:
             grasp_target_cube_positions = self.cube_tip_positions * coef
@@ -47,7 +47,7 @@ class ScriptedActions:
         else:
             target_tip_positions = pregrasp_tip_pos
         above_target_tip_positions = np.copy(target_tip_positions)
-        above_target_tip_positions[:, 2] = CUBE_WIDTH * 1.4
+        above_target_tip_positions[:, 2] = CUBOID_SIZE[0] * 2
         tip_pos_sequence = utils.complete_keypoints(self.get_last_tippos(obs), above_target_tip_positions, unit_length=0.004)
         tip_pos_sequence += utils.complete_keypoints(above_target_tip_positions, target_tip_positions, unit_length=0.004)
         self.tip_positions_list += tip_pos_sequence

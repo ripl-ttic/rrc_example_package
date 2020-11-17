@@ -1,0 +1,19 @@
+# Specify the name of the base image below
+Bootstrap: localimage
+From: ./image_phase_3.sif
+
+%setup
+# cp setup.py package.xml ${SINGULARITY_ROOTFS}/
+# cp -r python ${SINGULARITY_ROOTFS}/
+
+%files
+    Leap-2.3.1+31549-x64.deb /Leap.deb
+
+%post
+    # Put commands to install additional dependencies here.
+    # Make sure everything runs automatically without human input (e.g. add
+    # `-y` to automatically say "yes" below).
+    # python3 -m pip install -e .
+    apt-get update
+    apt-get install libgl1-mesa-glx
+    dpkg --install /Leap.deb

@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-'''
-Use custom_utils.sample_cube_surface_points and visualize the sampled points
-'''
 
 from code.make_env import make_training_env
 import numpy as np
@@ -126,7 +123,7 @@ class ForceControlPolicy(object):
                               force_gains=force_gains,
                               torque_gains=torque_gains)
         self.tip_pd = tip_pd
-        self.cube = Cube(0.0325, CoulombFriction(mu=mu))
+        self.cube = Cube(CoulombFriction(mu=mu))
         self.env = env
         self.apply_torques = apply_torques
         self.viz = viz

@@ -17,7 +17,7 @@ from code.save_video import merge_videos
 from code.utils import set_seed, action_type_to, repeat
 import argparse
 import functools
-from code.const import MU, VIRTUAL_CUBE_HALFWIDTH, CUBE_WIDTH
+from code.const import MU, CUBOID_SIZE, VIRTUAL_CUBOID_HALF_SIZE
 from collections import namedtuple
 import copy
 
@@ -35,7 +35,7 @@ class PlanningAndForceControlPolicy:
         else:
             goal_ori = obs['object_orientation']
         aligned_obs = copy.deepcopy(obs)
-        aligned_obs['object_position'][2] = CUBE_WIDTH / 2
+        aligned_obs['object_position'][2] = CUBOID_SIZE[0] / 2
         env.register_custom_log('grasp_target_cube_pose',
                                 {
                                     'position': aligned_obs['object_position'],
@@ -45,7 +45,7 @@ class PlanningAndForceControlPolicy:
         env.save_custom_logs()
         path = self.planner.plan(aligned_obs, obs['goal_object_position'], goal_ori,
                                  retry_grasp=10, mu=constants.mu,
-                                 cube_halfwidth=constants.halfwidth,
+                                 halfsize=constants.halfsize,
                                  use_rrt=use_rrt,
                                  use_incremental_rrt=use_incremental_rrt,
                                  use_ori=align_goal_ori)
@@ -76,9 +76,8 @@ class PlanningAndForceControlPolicy:
         return self.path.cube[0]
 
     def _get_default_constants(self):
-        from code.const import MU, VIRTUAL_CUBE_HALFWIDTH
-        Constants = namedtuple('Constants', ['mu', 'halfwidth'])
-        return Constants(mu=MU, halfwidth=VIRTUAL_CUBE_HALFWIDTH)
+        Constants = namedtuple('Constants', ['mu', 'halfsize'])
+        return Constants(mu=MU, halfsize=VIRTUAL_CUBOID_HALF_SIZE)
 
     def _initialize_joint_poses(self, obs):
         self.env.platform.simfinger.reset_finger_positions_and_velocities(self.path.joint_conf[0])

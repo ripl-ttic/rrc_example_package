@@ -114,9 +114,9 @@ def pitch_rotation_times(cube_orientation, goal_orientation):
         return 2
 
 def calc_pitching_cube_tip_position(pitch_axis, pitch_angle):
-    x = np.asarray([0.05, 0, 0])
+    x = np.asarray([0.02, 0, 0])
     y = np.asarray([0, 0.05, 0])
-    if   pitch_angle > 0 and pitch_axis == 'x':
+    if pitch_angle > 0 and pitch_axis == 'x':
         cube_tip_positions = np.asarray([x,  y, -x])
     elif pitch_angle > 0 and pitch_axis == 'y':
         cube_tip_positions = np.asarray([y, -x, -y])
@@ -130,7 +130,7 @@ def calc_pitching_cube_tip_position(pitch_axis, pitch_angle):
     return cube_tip_positions
 
 def calc_yawing_cube_tip_position():
-    x = np.asarray([0.05, 0, 0])
+    x = np.asarray([0.02, 0, 0])
     y = np.asarray([0, 0.05, 0])
     cube_tip_positions_list = [np.asarray([x,  y, -x]),
                                np.asarray([y, -x, -y]),
@@ -266,7 +266,7 @@ def run_episode(args):
     def calc_tip_positions(env, obs):
         from code.grasp_sampling import GraspSampler
         sample_fc_grasp = GraspSampler(env, obs, mu=MU)
-        cube_tip_positions, current_tip_positions, joint_conf = sample_fc_grasp(VIRTUAL_CUBE_HALFWIDTH, shrink_region=0.46)
+        cube_tip_positions, current_tip_positions, joint_conf = sample_fc_grasp(VIRTUAL_CUBOID_HALF_SIZE)
         return cube_tip_positions
 
     config = {

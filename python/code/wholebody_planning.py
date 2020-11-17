@@ -1,28 +1,26 @@
 #!/usr/bin/env python3
 import pybullet as p
-from code.make_env import make_training_env
 import numpy as np
 import time
-from code.utils import apply_transform, set_seed, VisualCubeOrientation
+from code.utils import apply_transform, VisualCubeOrientation
 from pybullet_planning import plan_wholebody_motion
-import argparse
 from collections import namedtuple
 from trifinger_simulation.tasks.move_cube import _ARENA_RADIUS, _min_height, _max_height
 from code.grasp_sampling import GraspSampler
-from code.const import COLLISION_TOLERANCE
+from code.const import COLLISION_TOLERANCE, VIRTUAL_CUBOID_HALF_SIZE
 
 dummy_links = [-2, -3, -4, -100, -101, -102]  # link indices <=100 denotes circular joints
 custom_limits = {
-    -2:(-_ARENA_RADIUS, _ARENA_RADIUS),
-    -3:(-_ARENA_RADIUS, _ARENA_RADIUS),
-    -4:(_min_height, _max_height),
-    -100:(-np.pi, np.pi),
-    -101:(-np.pi, np.pi),
-    -102:(-np.pi, np.pi)
+    -2: (-_ARENA_RADIUS, _ARENA_RADIUS),
+    -3: (-_ARENA_RADIUS, _ARENA_RADIUS),
+    -4: (_min_height, _max_height),
+    -100: (-np.pi, np.pi),
+    -101: (-np.pi, np.pi),
+    -102: (-np.pi, np.pi)
 }
-    # -102:(0, np.pi)
 
 Path = namedtuple('Path', ['cube', 'joint_conf', 'tip_path', 'cube_tip_pos'])
+
 
 def get_joint_states(robot_id, link_indices):
     joint_states = [joint_state[0] for joint_state in p.getJointStates(robot_id, link_indices)]
@@ -55,8 +53,7 @@ class WholeBodyPlanner:
         return [apply_transform(cube_pose[:3], get_quat(cube_pose[3:]), cube_tip_positions) for cube_pose in cube_path]
 
     def get_tighter_path(self, path, coef=0.9):
-        from code.utils import IKUtils, keep_state, filter_none_elements
-        from pybullet_planning.interfaces.kinematics.ik_utils import sample_ik_solution
+        from code.utils import IKUtils, filter_none_elements
         ik_utils = IKUtils(self.env)
         cube_tip_pos = path.cube_tip_pos * coef
         tip_path = self._get_tip_path(cube_tip_pos, path.cube)
@@ -79,8 +76,9 @@ class WholeBodyPlanner:
         return Path(cube_path, joint_conf, tip_path, cube_tip_pos)
 
     def plan(self, obs, goal_pos=None, goal_quat=None, retry_grasp=10, mu=1.0,
-             cube_halfwidth=0.0425, use_rrt=False, use_incremental_rrt=False,
-             min_goal_threshold=0.01, max_goal_threshold=0.8, use_ori=False):
+             halfsize=VIRTUAL_CUBOID_HALF_SIZE, use_rrt=False,
+             use_incremental_rrt=False, min_goal_threshold=0.01,
+             max_goal_threshold=0.8, use_ori=False):
         goal_pos = obs['goal_object_position'] if goal_pos is None else goal_pos
         goal_quat = obs['goal_object_orientation'] if goal_quat is None else goal_quat
         resolutions = 0.03 * np.array([0.3, 0.3, 0.3, 1, 1, 1])  # roughly equiv to the lengths of one step.
@@ -88,7 +86,7 @@ class WholeBodyPlanner:
         goal_ori = p.getEulerFromQuaternion(goal_quat)
         target_pose = np.concatenate([goal_pos, goal_ori])
         grasp_sampler = GraspSampler(self.env, obs, mu=mu, slacky_collision=True)
-        grasps = grasp_sampler.get_heurisic_grasps(cube_halfwidth)
+        grasps = grasp_sampler.get_heurisic_grasps(halfsize)
         org_joint_conf = obs['robot_position']
         org_joint_vel = obs['robot_velocity']
 
@@ -145,41 +143,34 @@ class WholeBodyPlanner:
                     break
             counter += 1
 
-                # # reset cube position
-                # self.env.platform.cube.block.set_state(obs['object_position'],
-                #                                        obs['object_orientation'])
-                # reset cube position and velocity
-                # set_body_state(self.env.platform.cube.block,
-                #                obs['object_position'], obs['object_orientation'],
-                #                org_obj_vel)
-
-
-        # reset joint conf
         self.env.platform.simfinger.reset_finger_positions_and_velocities(org_joint_conf, org_joint_vel)
 
         if cube_path is None:
             raise RuntimeError('wholebody planning failed')
 
         one_pose = (len(np.shape(cube_path)) == 1)
-        if one_pose: cube_path = [cube_path]
+        if one_pose:
+            cube_path = [cube_path]
         tip_path = self._get_tip_path(cube_tip_positions, cube_path)
         return Path(cube_path, joint_conf_path, tip_path, cube_tip_positions)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=0, help="seed")
-    parser.add_argument("--num_episodes", type=int, default=1, help="number of episodes")
-    args = parser.parse_args()
+    from trifinger_simulation.tasks import move_cube
+    from code.make_env import make_training_env
 
-    set_seed(args.seed)
-    reward_fn = 'task1_reward'
+    reward_fn = 'competition_reward'
     termination_fn = 'position_close_to_goal'
-    initializer = 'task4_small_rot_init'
-    env = make_training_env(reward_fn, termination_fn, initializer,
-                            action_space='position', visualization=True, rank=args.seed)
+    initializer = 'small_rot_init'
+    env = make_training_env(move_cube.sample_goal(-1).to_dict(), 4,
+                            reward_fn=reward_fn,
+                            termination_fn=termination_fn,
+                            initializer=initializer,
+                            action_space='position',
+                            sim=True, visualization=True)
+
     env = env.env  # HACK to remove FlatObservationWrapper
-    for i in range(args.num_episodes):
+    for i in range(1):
         obs = env.reset()
 
         goal_pos = obs["goal_object_position"]

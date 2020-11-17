@@ -291,10 +291,9 @@ class CubeManipulator:
 
         if cube_tip_positions is None:
             # sample a force-closure grasp
-            sample_fc_grasp = GraspSampler(self.env, obs, mu=MU)
             print('init_joint_conf is None --> sampling grasp points ad hoc...')
-            cube_tip_positions, tip_pos, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
-                                                                      shrink_region=0.2)
+            cube_tip_positions, tip_pos, joint_conf = sample_fc_grasp(CUBOID_HALF_SIZE + 0.0275,
+                                                                      shrink_region=[0.0, 0.6, 0.0])
         action_sequence = ScriptedActions(self.env, cube_tip_positions, self.vis_markers)
         pregrasp_joint_conf, pregrasp_tip_pos = self.get_safe_pregrasp(cube_tip_positions, obs)
         if pregrasp_joint_conf is None:
@@ -506,10 +505,10 @@ class CubeManipulator:
 
         for i in range(n_trials):
             if init_joint_conf is None:
-                sample_fc_grasp = GraspSampler(self.env, obs, mu=MU)
                 print('init_joint_conf is None --> sampling grasp points ad hoc...')
-                _, tip_pos, joint_conf = sample_fc_grasp(cube_halfwidth=0.06,
-                                                   shrink_region=0.2)
+                sampler = GraspSampler(self.env, obs, mu=MU)
+                _, tip_pos, joint_conf = sampler(CUBOID_HALF_SIZE + 0.0275,
+                                                 shrink_region=[0.0, 0.35, 0.0])
             else:
                 joint_conf = init_joint_conf
             action_seq = plan_joint_motion(**self._get_grasp_conf(joint_conf, config_type=config_type))

@@ -31,7 +31,7 @@ def main(args):
         'monitor': False,
         'rank': args.seed,
         'randomize': True,
-        'skip_motions': True,
+        'skip_motions': False,
     }
     env = make_training_env(visualization=True, **eval_config)
 
@@ -55,7 +55,7 @@ def main(args):
         p.resetDebugVisualizerCamera( cameraDistance=0.6, cameraYaw=0, cameraPitch=-40, cameraTargetPosition=[0,0,0])
 
         step = 0
-        while not is_done and step < 500:
+        while not is_done and step < 2000:
             step += 1
             action = env.action_space.sample()
             if isinstance(action, dict):
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument("--difficulty", type=int, default=1, help="difficulty")
     parser.add_argument("--num_episodes", default=10, type=int, help="number of episodes to record a video")
     parser.add_argument("--seed", default=0, type=int, help="random seed")
-    parser.add_argument("--policy", default='fc', choices=["fc", "mpfc"], help="which policy to run")
+    parser.add_argument("--policy", default='mpfc', choices=["fc", "mpfc"], help="which policy to run")
     args = parser.parse_args()
 
     print('For faster recording, run `git apply faster_recording_patch.diff`. This temporary changes episode length and window size.')

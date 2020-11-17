@@ -14,7 +14,7 @@ from trifinger_simulation import trifingerpro_limits
 from trifinger_simulation.tasks import move_cube
 from .reward_fns import competition_reward
 from .pinocchio_utils import PinocchioUtils
-from code.const import CUSTOM_LOGDIR, INIT_JOINT_CONF
+from code.const import CUSTOM_LOGDIR, INIT_JOINT_CONF, CUBOID_SIZE
 import pybullet as p
 
 
@@ -306,11 +306,11 @@ class RealRobotCubeEnv(gym.GoalEnv):
                          mass=0.094)
         # visualize the goal
         if self.visualization:
-            self.goal_marker = trifinger_simulation.visual_objects.CubeMarker(
-                width=0.065,
+            self.goal_marker = trifinger_simulation.visual_objects.CuboidMarker(
+                size=CUBOID_SIZE,
                 position=self.goal["position"],
                 orientation=self.goal["orientation"],
-                physicsClientId=self.platform.simfinger._pybullet_client_id,
+                pybullet_client_id=self.platform.simfinger._pybullet_client_id,
             )
 
     def seed(self, seed=None):

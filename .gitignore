@@ -7,3 +7,4 @@ logs/
 log_manager/logs
 log_manager/sshkey
 log_manager/user.txt
+data/

@@ -4,10 +4,10 @@ import numpy as np
 import gym
 from trifinger_simulation import TriFingerPlatform
 from trifinger_simulation import camera
-from trifinger_simulation.visual_objects import CubeMarker
+from trifinger_simulation.visual_objects import CuboidMarker
 from code.env.cube_env import ActionType
 import cv2
-from code.const import INIT_JOINT_CONF
+from code.const import INIT_JOINT_CONF, CUBOID_SIZE
 from scipy.spatial.transform import Rotation as R
 from code.domain_randomization import TriFingerRandomizer
 
@@ -418,6 +418,7 @@ class ResidualLearningMotionPlanningFCWrapper(gym.Wrapper):
         if self.init_cube_manip in ['grasp', 'flip_and_grasp']:
             try:
                 skip = bool(self.env.simulation and self.skip_motions)
+                print("HIHIHIIHIHHIIHIHHIHIHIHIHIHIHIIHI")
                 obs = self._grasp_approach(obs, skip=skip)
             except Exception as e:
                 print(EXCEP_MSSG.format(message='planning to grasp the cube seeemed to fail...', error=str(e)))
@@ -544,11 +545,11 @@ class RandomizedEnvWrapper(gym.Wrapper):
         self.step_count = 0
         self.noisy_cube_pose = self.sample_noisy_cube(obs)
         if self.visualize:
-            self.marker = CubeMarker(
-                width=0.065,
+            self.marker = CuboidMarker(
+                size=CUBOID_SIZE,
                 position=self.noisy_cube_pose['position'],
                 orientation=self.noisy_cube_pose['orientation'],
-                physicsClientId=self.platform.simfinger._pybullet_client_id,
+                pybullet_client_id=self.platform.simfinger._pybullet_client_id,
             )
 
         return self.randomize_obs(obs)
